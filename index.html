@@ -627,22 +627,23 @@
     </style>
 </head>
 <body>
-    <h1>饿来食 困来眠</h1>
+    <h1 id="app-title">饿来食 困来眠</h1>
     
     <!-- 用户状态栏 -->
     <div class="user-bar">
         <span class="user-email" id="user-email">未登录</span>
         <span class="sync-status" id="sync-status"></span>
         <button class="auth-btn" id="auth-btn">登录</button>
+        <button class="auth-btn" id="lang-btn">EN</button>
     </div>
     
     <div class="stats-bar">
         <div class="stat">
-            <span class="stat-label">精力</span>
+            <span class="stat-label" id="energy-label">精力</span>
             <span class="stat-value" id="energy-display">50%</span>
         </div>
         <div class="stat">
-            <span class="stat-label">连接</span>
+            <span class="stat-label" id="bonding-label">连接</span>
             <span class="stat-value" id="bonding-display">0%</span>
         </div>
     </div>
@@ -683,9 +684,9 @@
     </div>
     
     <div class="timer-settings" id="timer-settings">
-        <span class="timer-label">设定时间：</span>
+        <span class="timer-label" id="timer-label-1">设定时间：</span>
         <input type="number" class="timer-input" id="timer-input" placeholder="分钟" min="1" max="180">
-        <span class="timer-label">分钟</span>
+        <span class="timer-label" id="timer-label-2">分钟</span>
     </div>
     
     <div>
@@ -696,35 +697,35 @@
     <button class="checkin-btn" id="checkin-btn">共在</button>
     
     <div class="balance-container">
-        <div class="balance-title">今日平衡</div>
+        <div class="balance-title" id="balance-title">今日平衡</div>
         <div class="balance-bars" id="balance-bars">
             <div class="balance-row">
-                <span class="balance-label">工作</span>
+                <span class="balance-label" id="label-work">工作</span>
                 <div class="balance-bar"><div class="balance-fill work" id="bar-work"></div></div>
                 <span class="balance-time" id="time-work">0分</span>
             </div>
             <div class="balance-row">
-                <span class="balance-label">休息</span>
+                <span class="balance-label" id="label-rest">休息</span>
                 <div class="balance-bar"><div class="balance-fill rest" id="bar-rest"></div></div>
                 <span class="balance-time" id="time-rest">0分</span>
             </div>
             <div class="balance-row">
-                <span class="balance-label">创造</span>
+                <span class="balance-label" id="label-create">创造</span>
                 <div class="balance-bar"><div class="balance-fill create" id="bar-create"></div></div>
                 <span class="balance-time" id="time-create">0分</span>
             </div>
             <div class="balance-row">
-                <span class="balance-label">运动</span>
+                <span class="balance-label" id="label-exercise">运动</span>
                 <div class="balance-bar"><div class="balance-fill exercise" id="bar-exercise"></div></div>
                 <span class="balance-time" id="time-exercise">0分</span>
             </div>
             <div class="balance-row">
-                <span class="balance-label">社交</span>
+                <span class="balance-label" id="label-social">社交</span>
                 <div class="balance-bar"><div class="balance-fill social" id="bar-social"></div></div>
                 <span class="balance-time" id="time-social">0分</span>
             </div>
             <div class="balance-row">
-                <span class="balance-label">阅读</span>
+                <span class="balance-label" id="label-read">阅读</span>
                 <div class="balance-bar"><div class="balance-fill read" id="bar-read"></div></div>
                 <span class="balance-time" id="time-read">0分</span>
             </div>
@@ -741,10 +742,10 @@
     <!-- 补记弹窗 -->
     <div class="modal-overlay" id="log-modal" style="display: none;">
         <div class="modal">
-            <div class="modal-title">补记一段时间</div>
-            <div class="modal-desc">只记录数据，不增加连接值</div>
+            <div class="modal-title" id="log-modal-title">补记一段时间</div>
+            <div class="modal-desc" id="log-modal-desc">只记录数据，不增加连接值</div>
             <div class="modal-row">
-                <label>活动：</label>
+                <label id="log-label-activity">活动：</label>
                 <select id="log-activity">
                     <option value="work">工作</option>
                     <option value="rest">休息</option>
@@ -755,9 +756,9 @@
                 </select>
             </div>
             <div class="modal-row">
-                <label>时长：</label>
+                <label id="log-label-duration">时长：</label>
                 <input type="number" id="log-minutes" placeholder="分钟" min="1" max="480">
-                <span>分钟</span>
+                <span id="log-label-minutes">分钟</span>
             </div>
             <div class="modal-buttons">
                 <button class="modal-btn cancel" id="log-cancel">取消</button>
@@ -770,7 +771,7 @@
     <div class="modal-overlay" id="auth-modal" style="display: none;">
         <div class="modal">
             <div class="modal-title" id="auth-modal-title">登录</div>
-            <div class="modal-desc">登录后数据会自动同步到云端</div>
+            <div class="modal-desc" id="auth-modal-desc">登录后数据会自动同步到云端</div>
             <div class="auth-message" id="auth-message"></div>
             <input type="email" class="auth-input" id="auth-email" placeholder="邮箱">
             <input type="password" class="auth-input" id="auth-password" placeholder="密码">
@@ -779,7 +780,7 @@
                 <button class="modal-btn confirm" id="auth-confirm">登录</button>
             </div>
             <div style="text-align: center; margin-top: 15px;">
-                <span style="color: #666; font-size: 0.8rem;">没有账号？</span>
+                <span style="color: #666; font-size: 0.8rem;" id="auth-no-account">没有账号？</span>
                 <button style="background: none; border: none; color: #a8d8ea; font-size: 0.8rem; cursor: pointer;" id="auth-toggle">注册</button>
             </div>
         </div>
@@ -787,22 +788,274 @@
 
     <!-- 关于弹窗 -->
     <div class="modal-overlay" id="about-modal" style="display: none;">
-        <div class="modal" style="max-width: 320px;">
-            <div class="modal-title">饿来食，困来眠</div>
-            <div style="color: #888; font-size: 0.85rem; line-height: 1.6;">
-                <p style="margin-bottom: 12px;">不是时间管理工具。不是待办清单。</p>
-                <p style="margin-bottom: 12px;">是一个小小的存在，陪着你。</p>
-                <p style="margin-bottom: 12px;">它是你内在小孩的外在化。照顾它，其实是照顾自己。</p>
-                <p style="margin-bottom: 16px; color: #666; font-size: 0.8rem;">六种活动，六种滋养：<br>工作(经济)、休息(身体)、创造(精神)<br>运动(精力)、社交(关系)、阅读(智识)</p>
-                <p style="color: #a8d8ea; font-style: italic;">饿了就吃，困了就睡。</p>
+        <div class="modal" style="max-width: 340px;">
+            <div class="modal-title" id="about-title">饿来食，困来眠</div>
+            <div style="color: #888; font-size: 0.85rem; line-height: 1.6;" id="about-content">
+                <p style="margin-bottom: 12px;" id="about-p1">不是时间管理工具。不是待办清单。</p>
+                <p style="margin-bottom: 12px;" id="about-p2">是一个小小的存在，陪着你。</p>
+                <p style="margin-bottom: 12px;" id="about-p3">它是你内在小孩的外在化。照顾它，其实是照顾自己。</p>
+                <p style="margin-bottom: 16px; color: #666; font-size: 0.8rem;" id="about-p4">六种活动，六种滋养：<br>工作(经济)、休息(身体)、创造(精神)<br>运动(精力)、社交(关系)、阅读(智识)</p>
+                <p style="color: #a8d8ea; font-style: italic;" id="about-quote">饿了就吃，困了就睡。</p>
+                <p style="margin-top: 16px; color: #555; font-size: 0.75rem;" id="about-source">—— 出自禅宗《景德传灯录》</p>
             </div>
-            <div class="modal-buttons" style="margin-top: 20px;">
+            <div style="margin-top: 16px; text-align: center;">
+                <a href="https://ko-fi.com/joqiao" target="_blank" style="color: #a8d8ea; font-size: 0.8rem; text-decoration: none;" id="kofi-link">☕ 请我喝杯咖啡</a>
+            </div>
+            <div class="modal-buttons" style="margin-top: 16px;">
                 <button class="modal-btn confirm" id="about-close" style="flex: 1;">好</button>
             </div>
         </div>
     </div>
 
     <script>
+        // ==================== 多语言 ====================
+        let currentLang = localStorage.getItem('queertime-lang') || 'zh';
+        
+        const i18n = {
+            zh: {
+                title: '饿来食 困来眠',
+                notLoggedIn: '未登录',
+                login: '登录',
+                logout: '退出',
+                energy: '精力',
+                bonding: '连接',
+                greeting: '你来了',
+                work: '工作',
+                rest: '休息',
+                create: '创造',
+                exercise: '运动',
+                social: '社交',
+                read: '阅读',
+                setTime: '设定时间：',
+                minutes: '分钟',
+                start: '开始',
+                end: '结束',
+                bePresent: '共在',
+                todayBalance: '今日平衡',
+                log: '补记',
+                about: '关于',
+                resetToday: '重置',
+                export: '导出',
+                synced: '已同步',
+                syncing: '同步中...',
+                selectActivity: '选择一个活动吧',
+                welcomeBack: '欢迎回来，继续',
+                ongoing: '中',
+                texturePrompt: '这段时间的感觉？',
+                checkinPrompt: '此刻的感觉？',
+                noted: '记下了',
+                present: '共在',
+                logged: '已补记',
+                finishFirst: '先结束当前活动',
+                confirmReset: '确定要重置今日记录吗？',
+                enterValidTime: '请输入有效的时长',
+                timeUp: '时间到了～',
+                // 活动消息
+                msgWork: '专注中...我陪着你',
+                msgRest: '好好休息，这很重要',
+                msgCreate: '创造的时刻',
+                msgExercise: '动起来～',
+                msgSocial: '连接是珍贵的',
+                msgRead: '沉浸在文字里...',
+                // 状态消息
+                happyMsgs: ['在一起真好', '今天很平衡', '我感觉到你了', '就是这样'],
+                curiousMsgs: ['你来了', '想靠近你', '今天怎么样？', '我在这里'],
+                worriedMsgs: ['你累了吧？', '要不要休息一下', '我有点担心你', '慢一点也可以'],
+                upsetMsgs: ['...在这里', '（安静地看着你）', '需要休息吗', '慢慢来'],
+                idleMsgs: ['...', '（看看四周）', '（发呆中）', '嗯...', '～'],
+                clickHighBond: ['嗯！', '在～', '♡', '看到你了'],
+                clickMidBond: ['嗯', '嗨', '...在', '👀'],
+                clickLowBond: ['你好', '嗨...', '（眨眨眼）', '嗯'],
+                // 弹窗
+                logTitle: '补记一段时间',
+                logDesc: '只记录数据，不增加连接值',
+                activity: '活动：',
+                duration: '时长：',
+                cancel: '取消',
+                confirm: '记录',
+                authTitle: '登录',
+                authDesc: '登录后数据会自动同步到云端',
+                email: '邮箱',
+                password: '密码',
+                noAccount: '没有账号？',
+                register: '注册',
+                processing: '处理中...',
+                registerSuccess: '注册成功！请查收验证邮件',
+                // 关于
+                aboutTitle: '饿来食，困来眠',
+                aboutP1: '不是时间管理工具。不是待办清单。',
+                aboutP2: '是一个小小的存在，陪着你。',
+                aboutP3: '它是你内在小孩的外在化。照顾它，其实是照顾自己。',
+                aboutP4: '六种活动，六种滋养：<br>工作(经济)、休息(身体)、创造(精神)<br>运动(精力)、社交(关系)、阅读(智识)',
+                aboutQuote: '饿了就吃，困了就睡。',
+                aboutSource: '—— 出自禅宗《景德传灯录》',
+                kofiText: '☕ 请我喝杯咖啡',
+                ok: '好'
+            },
+            en: {
+                title: 'Eat when hungry, Sleep when tired',
+                notLoggedIn: 'Not logged in',
+                login: 'Login',
+                logout: 'Logout',
+                energy: 'Energy',
+                bonding: 'Bonding',
+                greeting: 'You\'re here',
+                work: 'Work',
+                rest: 'Rest',
+                create: 'Create',
+                exercise: 'Exercise',
+                social: 'Social',
+                read: 'Read',
+                setTime: 'Set time:',
+                minutes: 'min',
+                start: 'Start',
+                end: 'End',
+                bePresent: 'Be Present',
+                todayBalance: 'Today\'s Balance',
+                log: 'Log',
+                about: 'About',
+                resetToday: 'Reset',
+                export: 'Export',
+                synced: 'Synced',
+                syncing: 'Syncing...',
+                selectActivity: 'Pick an activity',
+                welcomeBack: 'Welcome back, continuing ',
+                ongoing: '',
+                texturePrompt: 'How did that feel?',
+                checkinPrompt: 'How do you feel now?',
+                noted: 'Noted',
+                present: 'Present',
+                logged: 'Logged',
+                finishFirst: 'Finish current activity first',
+                confirmReset: 'Reset today\'s record?',
+                enterValidTime: 'Please enter a valid duration',
+                timeUp: 'Time\'s up~',
+                // 活动消息
+                msgWork: 'Focusing... I\'m with you',
+                msgRest: 'Rest well, it matters',
+                msgCreate: 'A moment to create',
+                msgExercise: 'Let\'s move~',
+                msgSocial: 'Connection is precious',
+                msgRead: 'Lost in words...',
+                // 状态消息
+                happyMsgs: ['Good to be together', 'Balanced today', 'I feel you', 'Just like this'],
+                curiousMsgs: ['You\'re here', 'Want to be close', 'How are you?', 'I\'m here'],
+                worriedMsgs: ['Tired?', 'Maybe rest a bit?', 'A bit worried', 'Slower is okay'],
+                upsetMsgs: ['...here', '(quietly watching)', 'Need rest?', 'Take your time'],
+                idleMsgs: ['...', '(looking around)', '(spacing out)', 'hmm...', '~'],
+                clickHighBond: ['Mm!', 'Here~', '♡', 'See you'],
+                clickMidBond: ['Mm', 'Hi', '...here', '👀'],
+                clickLowBond: ['Hello', 'Hi...', '(blink)', 'Mm'],
+                // 弹窗
+                logTitle: 'Log past time',
+                logDesc: 'Records data only, no bonding added',
+                activity: 'Activity:',
+                duration: 'Duration:',
+                cancel: 'Cancel',
+                confirm: 'Log',
+                authTitle: 'Login',
+                authDesc: 'Login to sync data across devices',
+                email: 'Email',
+                password: 'Password',
+                noAccount: 'No account?',
+                register: 'Register',
+                processing: 'Processing...',
+                registerSuccess: 'Registered! Check your email',
+                // 关于
+                aboutTitle: 'Eat when hungry, Sleep when tired',
+                aboutP1: 'Not a time management tool. Not a to-do list.',
+                aboutP2: 'Just a little presence, with you.',
+                aboutP3: 'It\'s your inner child, externalized. Take care of it, take care of yourself.',
+                aboutP4: 'Six activities, six nourishments:<br>Work (wealth), Rest (body), Create (spirit)<br>Exercise (energy), Social (connection), Read (mind)',
+                aboutQuote: 'Eat when hungry, sleep when tired.',
+                aboutSource: '—— From Zen Buddhism "Jingde Record of the Transmission of the Lamp"',
+                kofiText: '☕ Buy me a coffee',
+                ok: 'OK'
+            }
+        };
+
+        function t(key) {
+            return i18n[currentLang][key] || key;
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('queertime-lang', lang);
+            
+            // 更新界面
+            document.getElementById('app-title').textContent = t('title');
+            document.getElementById('energy-label').textContent = t('energy');
+            document.getElementById('bonding-label').textContent = t('bonding');
+            
+            // 活动按钮
+            document.querySelector('[data-type="work"]').textContent = t('work');
+            document.querySelector('[data-type="rest"]').textContent = t('rest');
+            document.querySelector('[data-type="create"]').textContent = t('create');
+            document.querySelector('[data-type="exercise"]').textContent = t('exercise');
+            document.querySelector('[data-type="social"]').textContent = t('social');
+            document.querySelector('[data-type="read"]').textContent = t('read');
+            
+            // 其他按钮
+            document.getElementById('timer-label-1').textContent = t('setTime');
+            document.getElementById('timer-label-2').textContent = t('minutes');
+            document.getElementById('start-btn').textContent = t('start');
+            document.getElementById('stop-btn').textContent = t('end');
+            document.getElementById('checkin-btn').textContent = t('bePresent');
+            document.getElementById('balance-title').textContent = t('todayBalance');
+            document.getElementById('log-btn').textContent = t('log');
+            document.getElementById('about-btn').textContent = t('about');
+            document.getElementById('reset-btn').textContent = t('resetToday');
+            document.getElementById('export-btn').textContent = t('export');
+            
+            // 平衡条标签
+            document.getElementById('label-work').textContent = t('work');
+            document.getElementById('label-rest').textContent = t('rest');
+            document.getElementById('label-create').textContent = t('create');
+            document.getElementById('label-exercise').textContent = t('exercise');
+            document.getElementById('label-social').textContent = t('social');
+            document.getElementById('label-read').textContent = t('read');
+            
+            // 补记弹窗
+            document.getElementById('log-modal-title').textContent = t('logTitle');
+            document.getElementById('log-modal-desc').textContent = t('logDesc');
+            document.getElementById('log-label-activity').textContent = t('activity');
+            document.getElementById('log-label-duration').textContent = t('duration');
+            document.getElementById('log-label-minutes').textContent = t('minutes');
+            document.getElementById('log-cancel').textContent = t('cancel');
+            document.getElementById('log-confirm').textContent = t('confirm');
+            
+            // 登录弹窗
+            document.getElementById('auth-modal-title').textContent = t('authTitle');
+            document.getElementById('auth-modal-desc').textContent = t('authDesc');
+            document.getElementById('auth-email').placeholder = t('email');
+            document.getElementById('auth-password').placeholder = t('password');
+            document.getElementById('auth-no-account').textContent = t('noAccount');
+            document.getElementById('auth-cancel').textContent = t('cancel');
+            document.getElementById('auth-confirm').textContent = t('login');
+            
+            // 关于弹窗
+            document.getElementById('about-title').textContent = t('aboutTitle');
+            document.getElementById('about-p1').textContent = t('aboutP1');
+            document.getElementById('about-p2').textContent = t('aboutP2');
+            document.getElementById('about-p3').textContent = t('aboutP3');
+            document.getElementById('about-p4').innerHTML = t('aboutP4');
+            document.getElementById('about-quote').textContent = t('aboutQuote');
+            document.getElementById('about-source').textContent = t('aboutSource');
+            document.getElementById('kofi-link').textContent = t('kofiText');
+            document.getElementById('about-close').textContent = t('ok');
+            
+            // 语言按钮
+            document.getElementById('lang-btn').textContent = lang === 'zh' ? 'EN' : '中';
+            
+            // 更新认证 UI
+            updateAuthUI();
+            
+            // 更新状态消息
+            if (!isRunning) {
+                updateCreatureState();
+            }
+        }
+
         // ==================== Supabase 配置 ====================
         const SUPABASE_URL = 'https://kkocffqigydkupprgayh.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtrb2NmZnFpZ3lka3VwcHJnYXloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1MjMyOTksImV4cCI6MjA4MzA5OTI5OX0.pnmK_OP3FplrgU4L2XJFEg9ek0M3n0VwTjliiRscG4U';
@@ -1125,9 +1378,9 @@
             document.querySelector(`.activity-btn[data-type="${activity}"]`)?.classList.add('active');
             
             updateCreatureActivity(activity);
-            const activityNames = { work: '工作', rest: '休息', create: '创造', exercise: '运动', social: '社交', read: '阅读' };
-            currentActivity.textContent = `正在${activityNames[activity]}...`;
-            statusMessage.textContent = `欢迎回来，继续${activityNames[activity]}中`;
+            const activityKey = { work: 'work', rest: 'rest', create: 'create', exercise: 'exercise', social: 'social', read: 'read' };
+            currentActivity.textContent = `${t(activityKey[activity])}...`;
+            statusMessage.textContent = `${t('welcomeBack')}${t(activityKey[activity])}${t('ongoing')}`;
             
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(updateTimer, 1000);
@@ -1176,6 +1429,14 @@
         state.lastVisit = Date.now();
         saveStateLocal();
 
+        // 初始化语言
+        setLanguage(currentLang);
+
+        // 语言切换按钮
+        document.getElementById('lang-btn').addEventListener('click', () => {
+            setLanguage(currentLang === 'zh' ? 'en' : 'zh');
+        });
+
         updateDisplay();
         updateBalanceBars();
         updateCreatureState();
@@ -1205,7 +1466,7 @@
         // ==================== 开始/结束 ====================
         startBtn.addEventListener('click', () => {
             if (!selectedActivity) {
-                statusMessage.textContent = '选择一个活动吧';
+                statusMessage.textContent = t('selectActivity');
                 return;
             }
             
@@ -1227,8 +1488,7 @@
             
             updateCreatureActivity(selectedActivity);
             
-            const activityNames = { work: '工作', rest: '休息', create: '创造', exercise: '运动', social: '社交', read: '阅读' };
-            currentActivity.textContent = `正在${activityNames[selectedActivity]}...`;
+            currentActivity.textContent = `${t(selectedActivity)}...`;
             statusMessage.textContent = getActivityMessage(selectedActivity);
             
             timerInterval = setInterval(updateTimer, 1000);
@@ -1240,7 +1500,7 @@
 
         // ==================== 重置和导出 ====================
         resetBtn.addEventListener('click', () => {
-            if (confirm('确定要重置今日记录吗？')) {
+            if (confirm(t('confirmReset'))) {
                 todayLogs = { work: 0, rest: 0, create: 0, exercise: 0, social: 0, read: 0 };
                 allData[today] = todayLogs;
                 localStorage.setItem('queertime-all', JSON.stringify(allData));
@@ -1275,7 +1535,7 @@
 
         logBtn.addEventListener('click', () => {
             if (isRunning) {
-                statusMessage.textContent = '先结束当前活动';
+                statusMessage.textContent = t('finishFirst');
                 return;
             }
             logModal.style.display = 'flex';
@@ -1291,7 +1551,7 @@
             const minutes = parseInt(logMinutes.value);
             
             if (!minutes || minutes < 1) {
-                alert('请输入有效的时长');
+                alert(t('enterValidTime'));
                 return;
             }
             
@@ -1314,7 +1574,7 @@
             logModal.style.display = 'none';
             logMinutes.value = '';
             
-            statusMessage.textContent = '已补记';
+            statusMessage.textContent = t('logged');
             setTimeout(() => updateCreatureState(), 1500);
         });
 
@@ -1419,7 +1679,7 @@
             currentTextureMinutes = minutes;
             
             texturePicker.classList.add('show');
-            statusMessage.textContent = '这段时间的感觉？';
+            statusMessage.textContent = t('texturePrompt');
             
             // 4秒后自动消失
             textureTimeout = setTimeout(() => {
@@ -1435,7 +1695,7 @@
             currentTextureMinutes = 0;
             
             texturePicker.classList.add('show');
-            statusMessage.textContent = '此刻的感觉？';
+            statusMessage.textContent = t('checkinPrompt');
             
             // 共在模式不自动消失，等用户选择或点别处
         }
@@ -1475,11 +1735,11 @@
                     // 根据颜色调整精力
                     adjustEnergyByColor(color, currentTextureMinutes);
                     
-                    statusMessage.textContent = '记下了';
+                    statusMessage.textContent = t('noted');
                 } else {
                     // 共在模式
                     saveCheckin(color);
-                    statusMessage.textContent = '共在';
+                    statusMessage.textContent = t('present');
                 }
                 
                 // 选了颜色，连接 +2（愿意停下来感受）
@@ -1686,8 +1946,8 @@
                     creature.style.boxShadow = '0 0 100px rgba(168, 216, 234, 0.8)';
                     setTimeout(() => creature.style.boxShadow = '', 800);
                 } else if (rand < 0.85) {
-                    const idleMessages = ['...', '（看看四周）', '（发呆中）', '嗯...', '～'];
-                    statusMessage.textContent = idleMessages[Math.floor(Math.random() * idleMessages.length)];
+                    const idleMsgs = t('idleMsgs');
+                    statusMessage.textContent = idleMsgs[Math.floor(Math.random() * idleMsgs.length)];
                     setTimeout(() => {
                         if (!isRunning) updateCreatureState();
                     }, 2000);
@@ -1705,34 +1965,34 @@
 
         // ==================== 消息 ====================
         function getActivityMessage(activity) {
-            const messages = {
-                work: '专注中...我陪着你',
-                rest: '好好休息，这很重要',
-                create: '创造的时刻',
-                exercise: '动起来～',
-                social: '连接是珍贵的',
-                read: '沉浸在文字里...'
+            const keys = {
+                work: 'msgWork',
+                rest: 'msgRest',
+                create: 'msgCreate',
+                exercise: 'msgExercise',
+                social: 'msgSocial',
+                read: 'msgRead'
             };
-            return messages[activity];
+            return t(keys[activity]);
         }
 
         function getHappyMessage() {
-            const messages = ['在一起真好', '今天很平衡', '我感觉到你了', '就是这样'];
+            const messages = t('happyMsgs');
             return messages[Math.floor(Math.random() * messages.length)];
         }
 
         function getCuriousMessage() {
-            const messages = ['你来了', '想靠近你', '今天怎么样？', '我在这里'];
+            const messages = t('curiousMsgs');
             return messages[Math.floor(Math.random() * messages.length)];
         }
 
         function getWorriedMessage() {
-            const messages = ['你累了吧？', '要不要休息一下', '我有点担心你', '慢一点也可以'];
+            const messages = t('worriedMsgs');
             return messages[Math.floor(Math.random() * messages.length)];
         }
 
         function getUpsetMessage() {
-            const messages = ['...在这里', '（安静地看着你）', '需要休息吗', '慢慢来'];
+            const messages = t('upsetMsgs');
             return messages[Math.floor(Math.random() * messages.length)];
         }
 
@@ -1740,11 +2000,14 @@
             const bonding = state.bonding;
             
             if (bonding > 50) {
-                return ['嗯！', '在～', '♡', '看到你了'][Math.floor(Math.random() * 4)];
+                const msgs = t('clickHighBond');
+                return msgs[Math.floor(Math.random() * msgs.length)];
             } else if (bonding > 20) {
-                return ['嗯', '嗨', '...在', '👀'][Math.floor(Math.random() * 4)];
+                const msgs = t('clickMidBond');
+                return msgs[Math.floor(Math.random() * msgs.length)];
             } else {
-                return ['你好', '嗨...', '（眨眨眼）', '嗯'][Math.floor(Math.random() * 4)];
+                const msgs = t('clickLowBond');
+                return msgs[Math.floor(Math.random() * msgs.length)];
             }
         }
 
@@ -1755,7 +2018,7 @@
             }
             
             creature.classList.add('timer-done');
-            statusMessage.textContent = '时间到了～';
+            statusMessage.textContent = t('timeUp');
             
             try {
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
