@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>饿来食 困来眠</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e8e8e8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+            color: #a8d8ea;
+            letter-spacing: 2px;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            font-size: 0.8rem;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-label {
+            color: #888;
+        }
+
+        .stat-value {
+            color: #a8d8ea;
+        }
+
+        .creature-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+
+        .creature {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #a8d8ea, #5e9ecf, #3d5a80);
+            box-shadow: 
+                0 0 60px rgba(168, 216, 234, 0.4),
+                inset 0 0 30px rgba(255, 255, 255, 0.1);
+            animation: float 4s ease-in-out infinite, breathe 3s ease-in-out infinite;
+            position: relative;
+            transition: all 0.5s ease;
+        }
+
+        /* 活动状态颜色 */
+        .creature.working { background: radial-gradient(circle at 30% 30%, #ffd93d, #f39c12, #d68910); box-shadow: 0 0 60px rgba(255, 217, 61, 0.4); }
+        .creature.resting { background: radial-gradient(circle at 30% 30%, #a29bfe, #6c5ce7, #5849a6); box-shadow: 0 0 60px rgba(162, 155, 254, 0.4); }
+        .creature.creating { background: radial-gradient(circle at 30% 30%, #fd79a8, #e84393, #c23672); box-shadow: 0 0 60px rgba(253, 121, 168, 0.4); }
+        .creature.exercising { background: radial-gradient(circle at 30% 30%, #55efc4, #00b894, #00a381); box-shadow: 0 0 60px rgba(85, 239, 196, 0.4); }
+        .creature.socializing { background: radial-gradient(circle at 30% 30%, #fdcb6e, #f39c12, #d68910); box-shadow: 0 0 60px rgba(253, 203, 110, 0.4); }
+        .creature.reading { background: radial-gradient(circle at 30% 30%, #81ecec, #00cec9, #00a8a3); box-shadow: 0 0 60px rgba(129, 236, 236, 0.4); }
+
+        /* 精力低 */
+        .creature.tired {
+            background: radial-gradient(circle at 30% 30%, #636e72, #535c68, #3d4145);
+            box-shadow: 0 0 30px rgba(99, 110, 114, 0.3);
+            animation: float 6s ease-in-out infinite, breathe 5s ease-in-out infinite;
+        }
+
+        /* 连接低+精力低：烦躁 */
+        .creature.upset {
+            animation: float 4s ease-in-out infinite, breathe 3s ease-in-out infinite, shake 0.3s ease-in-out infinite;
+        }
+
+        /* 连接高+精力高：发光 */
+        .creature.happy {
+            box-shadow: 0 0 80px rgba(168, 216, 234, 0.6), 0 0 120px rgba(168, 216, 234, 0.3);
+        }
+
+        .eyes {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 20px;
+        }
+
+        .eye {
+            width: 12px;
+            height: 12px;
+            background: #1a1a2e;
+            border-radius: 50%;
+            animation: blink 4s ease-in-out infinite;
+            transition: all 0.3s ease;
+        }
+
+        .creature.tired .eye {
+            height: 6px;
+            border-radius: 6px;
+        }
+
+        .creature.upset .eye {
+            transform: rotate(-10deg);
+        }
+
+        /* 小动作 */
+        .creature.looking-around .eye:first-child {
+            transform: translateX(-5px);
+        }
+        .creature.looking-around .eye:last-child {
+            transform: translateX(5px);
+        }
+
+        .creature.stretching {
+            transform: scaleY(1.15) scaleX(0.9);
+        }
+
+        .creature.noticed-you .eye {
+            width: 16px !important;
+            height: 16px !important;
+            transition: all 0.2s ease;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes blink {
+            0%, 45%, 55%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
+
+        @keyframes quickBlink {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.1); }
+        }
+
+        .status-message {
+            font-size: 0.9rem;
+            color: #a8d8ea;
+            margin-bottom: 15px;
+            text-align: center;
+            min-height: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .timer-display {
+            font-size: 3rem;
+            font-weight: 200;
+            margin-bottom: 15px;
+            font-variant-numeric: tabular-nums;
+            color: #e8e8e8;
+        }
+
+        .current-activity {
+            font-size: 1rem;
+            color: #a8d8ea;
+            margin-bottom: 15px;
+        }
+
+        .activities {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .activity-btn {
+            padding: 15px 10px;
+            border: 1px solid rgba(168, 216, 234, 0.3);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #e8e8e8;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .activity-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(168, 216, 234, 0.5);
+        }
+
+        .activity-btn.active {
+            background: rgba(168, 216, 234, 0.2);
+            border-color: #a8d8ea;
+        }
+
+        .activity-btn.work { border-color: #ffd93d; }
+        .activity-btn.work.active { background: rgba(255, 217, 61, 0.2); }
+        .activity-btn.rest { border-color: #a29bfe; }
+        .activity-btn.rest.active { background: rgba(162, 155, 254, 0.2); }
+        .activity-btn.create { border-color: #fd79a8; }
+        .activity-btn.create.active { background: rgba(253, 121, 168, 0.2); }
+        .activity-btn.exercise { border-color: #55efc4; }
+        .activity-btn.exercise.active { background: rgba(85, 239, 196, 0.2); }
+        .activity-btn.social { border-color: #fdcb6e; }
+        .activity-btn.social.active { background: rgba(253, 203, 110, 0.2); }
+        .activity-btn.read { border-color: #81ecec; }
+        .activity-btn.read.active { background: rgba(129, 236, 236, 0.2); }
+
+        .timer-settings {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .timer-input {
+            width: 60px;
+            padding: 8px;
+            border: 1px solid rgba(168, 216, 234, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #e8e8e8;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .timer-input:focus {
+            outline: none;
+            border-color: #a8d8ea;
+        }
+
+        .timer-label {
+            color: #a8d8ea;
+            font-size: 0.9rem;
+        }
+
+        .control-btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #a8d8ea, #5e9ecf);
+            color: #1a1a2e;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(168, 216, 234, 0.4);
+        }
+
+        .stop-btn {
+            background: linear-gradient(135deg, #ff7675, #d63031);
+            color: #fff;
+        }
+
+        .stop-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .balance-container {
+            width: 100%;
+            max-width: 360px;
+            margin-top: 15px;
+        }
+
+        .balance-title {
+            font-size: 0.85rem;
+            color: #a8d8ea;
+            margin-bottom: 10px;
+        }
+
+        .balance-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .balance-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .balance-label {
+            width: 50px;
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .balance-bar {
+            flex: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .balance-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .balance-fill.work { background: #ffd93d; }
+        .balance-fill.rest { background: #a29bfe; }
+        .balance-fill.create { background: #fd79a8; }
+        .balance-fill.exercise { background: #55efc4; }
+        .balance-fill.social { background: #fdcb6e; }
+        .balance-fill.read { background: #81ecec; }
+
+        .balance-time {
+            width: 50px;
+            font-size: 0.75rem;
+            color: #888;
+            text-align: right;
+        }
+
+        .bottom-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .reset-btn {
+            padding: 8px 20px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            color: #888;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .reset-btn:hover {
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #aaa;
+        }
+
+        /* 补记弹窗 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal {
+            background: #1a1a2e;
+            border: 1px solid rgba(168, 216, 234, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 300px;
+        }
+
+        .modal-title {
+            font-size: 1.1rem;
+            color: #a8d8ea;
+            margin-bottom: 8px;
+        }
+
+        .modal-desc {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .modal-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .modal-row label {
+            color: #888;
+            font-size: 0.9rem;
+            width: 50px;
+        }
+
+        .modal-row select,
+        .modal-row input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid rgba(168, 216, 234, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #e8e8e8;
+            font-size: 0.9rem;
+        }
+
+        .modal-row select:focus,
+        .modal-row input:focus {
+            outline: none;
+            border-color: #a8d8ea;
+        }
+
+        .modal-row span {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .modal-btn.cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: #888;
+        }
+
+        .modal-btn.confirm {
+            background: linear-gradient(135deg, #a8d8ea, #5e9ecf);
+            color: #1a1a2e;
+        }
+
+        /* 提醒音效提示 */
+        .timer-done {
+            animation: pulse 0.5s ease-in-out 3;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+    </style>
+</head>
+<body>
+    <h1>饿来食 困来眠</h1>
+    
+    <div class="stats-bar">
+        <div class="stat">
+            <span class="stat-label">精力</span>
+            <span class="stat-value" id="energy-display">50%</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">连接</span>
+            <span class="stat-value" id="bonding-display">0%</span>
+        </div>
+    </div>
+    
+    <div class="creature-container" id="creature-container">
+        <div class="creature" id="creature">
+            <div class="eyes">
+                <div class="eye"></div>
+                <div class="eye"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-message" id="status-message">你来了</div>
+    
+    <div class="timer-display" id="timer-display">00:00</div>
+    
+    <div class="current-activity" id="current-activity"></div>
+    
+    <div class="activities" id="activities">
+        <button class="activity-btn work" data-type="work">工作</button>
+        <button class="activity-btn rest" data-type="rest">休息</button>
+        <button class="activity-btn create" data-type="create">创造</button>
+        <button class="activity-btn exercise" data-type="exercise">运动</button>
+        <button class="activity-btn social" data-type="social">社交</button>
+        <button class="activity-btn read" data-type="read">阅读</button>
+    </div>
+    
+    <div class="timer-settings" id="timer-settings">
+        <span class="timer-label">设定时间：</span>
+        <input type="number" class="timer-input" id="timer-input" placeholder="分钟" min="1" max="180">
+        <span class="timer-label">分钟</span>
+    </div>
+    
+    <div>
+        <button class="control-btn start-btn" id="start-btn">开始</button>
+        <button class="control-btn stop-btn" id="stop-btn" style="display: none;">结束</button>
+    </div>
+    
+    <div class="balance-container">
+        <div class="balance-title">今日平衡</div>
+        <div class="balance-bars" id="balance-bars">
+            <div class="balance-row">
+                <span class="balance-label">工作</span>
+                <div class="balance-bar"><div class="balance-fill work" id="bar-work"></div></div>
+                <span class="balance-time" id="time-work">0分</span>
+            </div>
+            <div class="balance-row">
+                <span class="balance-label">休息</span>
+                <div class="balance-bar"><div class="balance-fill rest" id="bar-rest"></div></div>
+                <span class="balance-time" id="time-rest">0分</span>
+            </div>
+            <div class="balance-row">
+                <span class="balance-label">创造</span>
+                <div class="balance-bar"><div class="balance-fill create" id="bar-create"></div></div>
+                <span class="balance-time" id="time-create">0分</span>
+            </div>
+            <div class="balance-row">
+                <span class="balance-label">运动</span>
+                <div class="balance-bar"><div class="balance-fill exercise" id="bar-exercise"></div></div>
+                <span class="balance-time" id="time-exercise">0分</span>
+            </div>
+            <div class="balance-row">
+                <span class="balance-label">社交</span>
+                <div class="balance-bar"><div class="balance-fill social" id="bar-social"></div></div>
+                <span class="balance-time" id="time-social">0分</span>
+            </div>
+            <div class="balance-row">
+                <span class="balance-label">阅读</span>
+                <div class="balance-bar"><div class="balance-fill read" id="bar-read"></div></div>
+                <span class="balance-time" id="time-read">0分</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bottom-buttons">
+        <button class="reset-btn" id="reset-btn">重置今日</button>
+        <button class="reset-btn" id="log-btn">补记</button>
+        <button class="reset-btn" id="export-btn">导出数据</button>
+    </div>
+    
+    <!-- 补记弹窗 -->
+    <div class="modal-overlay" id="log-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-title">补记一段时间</div>
+            <div class="modal-desc">只记录数据，不增加连接值</div>
+            <div class="modal-row">
+                <label>活动：</label>
+                <select id="log-activity">
+                    <option value="work">工作</option>
+                    <option value="rest">休息</option>
+                    <option value="create">创造</option>
+                    <option value="exercise">运动</option>
+                    <option value="social">社交</option>
+                    <option value="read">阅读</option>
+                </select>
+            </div>
+            <div class="modal-row">
+                <label>时长：</label>
+                <input type="number" id="log-minutes" placeholder="分钟" min="1" max="480">
+                <span>分钟</span>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" id="log-cancel">取消</button>
+                <button class="modal-btn confirm" id="log-confirm">记录</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 状态 ====================
+        let selectedActivity = null;
+        let isRunning = false;
+        let startTime = null;
+        let timerInterval = null;
+        let targetMinutes = null;
+        let idleActionInterval = null;
+
+        // ==================== 数据存储 ====================
+        const today = new Date().toDateString();
+        
+        // 读取所有历史数据
+        let allData = JSON.parse(localStorage.getItem('queertime-all') || '{}');
+        
+        // 今日数据
+        if (!allData[today]) {
+            allData[today] = { work: 0, rest: 0, create: 0, exercise: 0, social: 0, read: 0 };
+        }
+        let todayLogs = allData[today];
+
+        // 精力和连接值
+        let state = JSON.parse(localStorage.getItem('queertime-state') || '{}');
+        if (!state.energy) state.energy = 50;
+        if (!state.bonding) state.bonding = 0;
+        if (!state.lastVisit) state.lastVisit = Date.now();
+
+        // ==================== DOM ====================
+        const creature = document.getElementById('creature');
+        const creatureContainer = document.getElementById('creature-container');
+        const statusMessage = document.getElementById('status-message');
+        const timerDisplay = document.getElementById('timer-display');
+        const currentActivity = document.getElementById('current-activity');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const timerInput = document.getElementById('timer-input');
+        const timerSettings = document.getElementById('timer-settings');
+        const resetBtn = document.getElementById('reset-btn');
+        const exportBtn = document.getElementById('export-btn');
+        const energyDisplay = document.getElementById('energy-display');
+        const bondingDisplay = document.getElementById('bonding-display');
+
+        // ==================== 初始化 ====================
+        
+        // 检查离开了多久，连接值下降
+        const timeSinceLastVisit = (Date.now() - state.lastVisit) / 1000 / 60 / 60; // 小时
+        if (timeSinceLastVisit > 6) {
+            // 超过6小时没来，连接下降
+            const decrease = Math.min(state.bonding, Math.floor(timeSinceLastVisit * 2));
+            state.bonding = Math.max(0, state.bonding - decrease);
+        }
+        state.lastVisit = Date.now();
+        saveState();
+
+        updateDisplay();
+        updateBalanceBars();
+        updateCreatureState();
+        startIdleActions();
+
+        // 检查是否有未完成的活动
+        const ongoing = JSON.parse(localStorage.getItem('queertime-ongoing'));
+        if (ongoing && ongoing.startTime) {
+            const elapsedMinutes = Math.floor((Date.now() - ongoing.startTime) / 1000 / 60);
+            if (elapsedMinutes < 480) { // 少于8小时才恢复
+                // 恢复活动
+                selectedActivity = ongoing.activity;
+                startTime = ongoing.startTime;
+                targetMinutes = ongoing.targetMinutes;
+                isRunning = true;
+                
+                // 更新UI
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                timerSettings.style.display = 'none';
+                
+                // 高亮对应按钮
+                document.querySelector(`.activity-btn.${ongoing.activity === 'read' ? 'read' : ongoing.activity}`).classList.add('active');
+                
+                updateCreatureActivity(selectedActivity);
+                const activityNames = { work: '工作', rest: '休息', create: '创造', exercise: '运动', social: '社交', read: '阅读' };
+                currentActivity.textContent = `正在${activityNames[selectedActivity]}...`;
+                statusMessage.textContent = `欢迎回来，继续${activityNames[selectedActivity]}中`;
+                
+                timerInterval = setInterval(updateTimer, 1000);
+                updateTimer(); // 立即更新一次显示
+            } else {
+                // 超过8小时，清除
+                localStorage.removeItem('queertime-ongoing');
+            }
+        }
+
+        // 点击宠物
+        creatureContainer.addEventListener('click', () => {
+            // 点击本身就是连接，不需要加数值
+            
+            // 它注意到你了
+            creature.classList.add('noticed-you');
+            statusMessage.textContent = getClickResponse();
+            
+            setTimeout(() => {
+                creature.classList.remove('noticed-you');
+                updateCreatureState();
+            }, 1000);
+        });
+
+        // ==================== 活动按钮 ====================
+        document.querySelectorAll('.activity-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (isRunning) return;
+                document.querySelectorAll('.activity-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedActivity = btn.dataset.type;
+            });
+        });
+
+        // ==================== 开始/结束 ====================
+        startBtn.addEventListener('click', () => {
+            if (!selectedActivity) {
+                statusMessage.textContent = '选择一个活动吧';
+                return;
+            }
+            
+            isRunning = true;
+            startTime = Date.now();
+            targetMinutes = timerInput.value ? parseInt(timerInput.value) : null;
+            
+            // 保存进行中的活动，防止页面被关闭
+            localStorage.setItem('queertime-ongoing', JSON.stringify({
+                activity: selectedActivity,
+                startTime: startTime,
+                targetMinutes: targetMinutes
+            }));
+            
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-block';
+            timerSettings.style.display = 'none';
+            
+            updateCreatureActivity(selectedActivity);
+            
+            const activityNames = { work: '工作', rest: '休息', create: '创造', exercise: '运动', social: '社交', read: '阅读' };
+            currentActivity.textContent = `正在${activityNames[selectedActivity]}...`;
+            statusMessage.textContent = getActivityMessage(selectedActivity);
+            
+            timerInterval = setInterval(updateTimer, 1000);
+        });
+
+        stopBtn.addEventListener('click', () => {
+            endActivity();
+        });
+
+        // ==================== 重置和导出 ====================
+        resetBtn.addEventListener('click', () => {
+            if (confirm('确定要重置今日记录吗？')) {
+                todayLogs = { work: 0, rest: 0, create: 0, exercise: 0, social: 0, read: 0 };
+                allData[today] = todayLogs;
+                localStorage.setItem('queertime-all', JSON.stringify(allData));
+                updateBalanceBars();
+                updateCreatureState();
+            }
+        });
+
+        exportBtn.addEventListener('click', () => {
+            const exportData = {
+                history: allData,
+                state: state,
+                exportedAt: new Date().toISOString()
+            };
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `queer-time-export-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // ==================== 补记功能 ====================
+        const logModal = document.getElementById('log-modal');
+        const logBtn = document.getElementById('log-btn');
+        const logCancel = document.getElementById('log-cancel');
+        const logConfirm = document.getElementById('log-confirm');
+        const logActivity = document.getElementById('log-activity');
+        const logMinutes = document.getElementById('log-minutes');
+
+        logBtn.addEventListener('click', () => {
+            if (isRunning) {
+                statusMessage.textContent = '先结束当前活动';
+                return;
+            }
+            logModal.style.display = 'flex';
+        });
+
+        logCancel.addEventListener('click', () => {
+            logModal.style.display = 'none';
+            logMinutes.value = '';
+        });
+
+        logConfirm.addEventListener('click', () => {
+            const activity = logActivity.value;
+            const minutes = parseInt(logMinutes.value);
+            
+            if (!minutes || minutes < 1) {
+                alert('请输入有效的时长');
+                return;
+            }
+            
+            // 只记录数据，不增加连接值
+            todayLogs[activity] += minutes;
+            allData[today] = todayLogs;
+            localStorage.setItem('queertime-all', JSON.stringify(allData));
+            
+            // 更新显示
+            updateBalanceBars();
+            
+            // 关闭弹窗
+            logModal.style.display = 'none';
+            logMinutes.value = '';
+            
+            statusMessage.textContent = '已补记';
+            setTimeout(() => updateCreatureState(), 1500);
+        });
+
+        // 点击遮罩关闭
+        logModal.addEventListener('click', (e) => {
+            if (e.target === logModal) {
+                logModal.style.display = 'none';
+                logMinutes.value = '';
+            }
+        });
+
+        // ==================== 核心函数 ====================
+        
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            
+            // 定时到了
+            if (targetMinutes && minutes >= targetMinutes) {
+                playNotification();
+                endActivity();
+            }
+        }
+
+        function endActivity() {
+            if (!isRunning) return;
+            
+            clearInterval(timerInterval);
+            
+            // 清除进行中活动的保存
+            localStorage.removeItem('queertime-ongoing');
+            
+            // 计算时间
+            const elapsedMinutes = Math.max(1, Math.floor((Date.now() - startTime) / 1000 / 60));
+            
+            // 记录活动
+            todayLogs[selectedActivity] += elapsedMinutes;
+            allData[today] = todayLogs;
+            localStorage.setItem('queertime-all', JSON.stringify(allData));
+            
+            // 更新精力和连接
+            updateEnergyAndBonding(selectedActivity, elapsedMinutes);
+            
+            // 重置UI
+            isRunning = false;
+            startTime = null;
+            targetMinutes = null;
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+            timerSettings.style.display = 'flex';
+            timerDisplay.textContent = '00:00';
+            currentActivity.textContent = '';
+            timerInput.value = '';
+            
+            document.querySelectorAll('.activity-btn').forEach(b => b.classList.remove('active'));
+            selectedActivity = null;
+            
+            updateBalanceBars();
+            updateDisplay();
+            updateCreatureState();
+        }
+
+        function updateEnergyAndBonding(activity, minutes) {
+            // 计算活动多样性
+            const types = ['work', 'rest', 'create', 'exercise', 'social', 'read'];
+            const activeTypes = types.filter(t => todayLogs[t] > 0).length;
+            const total = types.reduce((sum, t) => sum + todayLogs[t], 0);
+            
+            // 计算非休息活动中工作的占比
+            const nonRestTotal = total - todayLogs.rest;
+            const workRatio = nonRestTotal > 0 ? todayLogs.work / nonRestTotal : 0;
+            
+            // 精力变化
+            if (activity === 'rest') {
+                // 休息总是恢复精力
+                state.energy = Math.min(100, state.energy + Math.floor(minutes / 2));
+            } else if (activity === 'exercise') {
+                // 运动也恢复一点精力
+                state.energy = Math.min(100, state.energy + Math.floor(minutes / 4));
+            } else if (activeTypes >= 3) {
+                // 多样性好，精力维持，轻微上升
+                state.energy = Math.min(100, state.energy + Math.floor(minutes / 8));
+            } else if (activeTypes === 1 && total > 60) {
+                // 单一活动超过60分钟才开始消耗
+                state.energy = Math.max(0, state.energy - Math.floor(minutes / 5));
+            }
+            // 其他情况精力不变
+            
+            // 连接变化
+            if (state.energy > 35) {
+                // 精力正常时，任何活动都增加连接
+                state.bonding = Math.min(100, state.bonding + Math.floor(minutes / 3));
+            } else {
+                // 精力低时，只有休息增加连接
+                if (activity === 'rest') {
+                    state.bonding = Math.min(100, state.bonding + Math.floor(minutes / 2));
+                }
+            }
+            
+            saveState();
+        }
+
+        function updateDisplay() {
+            energyDisplay.textContent = `${Math.round(state.energy)}%`;
+            bondingDisplay.textContent = `${Math.round(state.bonding)}%`;
+        }
+
+        function updateCreatureState() {
+            creature.className = 'creature';
+            
+            const energy = state.energy;
+            const bonding = state.bonding;
+            
+            // 精力低于35才算累
+            const isLowEnergy = energy < 35;
+            // 连接高于30算有连接
+            const hasConnection = bonding > 30;
+            
+            if (!isLowEnergy && hasConnection) {
+                // 正常精力 + 有连接 = 开心
+                creature.classList.add('happy');
+                statusMessage.textContent = getHappyMessage();
+            } else if (!isLowEnergy && !hasConnection) {
+                // 正常精力 + 低连接 = 好奇，想认识你
+                statusMessage.textContent = getCuriousMessage();
+            } else if (isLowEnergy && hasConnection) {
+                // 低精力 + 有连接 = 担心你
+                creature.classList.add('tired');
+                statusMessage.textContent = getWorriedMessage();
+            } else {
+                // 低精力 + 低连接 = 需要关注
+                creature.classList.add('tired');
+                statusMessage.textContent = getUpsetMessage();
+            }
+        }
+
+        function updateCreatureActivity(activity) {
+            creature.className = 'creature';
+            switch(activity) {
+                case 'work': creature.classList.add('working'); break;
+                case 'rest': creature.classList.add('resting'); break;
+                case 'create': creature.classList.add('creating'); break;
+                case 'exercise': creature.classList.add('exercising'); break;
+                case 'social': creature.classList.add('socializing'); break;
+                case 'read': creature.classList.add('reading'); break;
+            }
+        }
+
+        function updateBalanceBars() {
+            const total = Math.max(1, Object.values(todayLogs).reduce((a, b) => a + b, 0));
+            const types = ['work', 'rest', 'create', 'exercise', 'social', 'read'];
+            
+            types.forEach(type => {
+                const bar = document.getElementById(`bar-${type}`);
+                const time = document.getElementById(`time-${type}`);
+                const minutes = todayLogs[type] || 0;
+                const percentage = (minutes / total) * 100;
+                
+                bar.style.width = `${percentage}%`;
+                time.textContent = `${minutes}分`;
+            });
+        }
+
+        // ==================== 小动作 ====================
+        function startIdleActions() {
+            // 每隔一段时间随机做个小动作
+            idleActionInterval = setInterval(() => {
+                if (isRunning) return; // 活动中不做
+                
+                const rand = Math.random();
+                
+                if (rand < 0.25) {
+                    // 东张西望 - 眼睛移动
+                    const eyes = creature.querySelectorAll('.eye');
+                    eyes[0].style.transform = 'translateX(-4px)';
+                    eyes[1].style.transform = 'translateX(4px)';
+                    setTimeout(() => {
+                        eyes[0].style.transform = '';
+                        eyes[1].style.transform = '';
+                    }, 1500);
+                } else if (rand < 0.5) {
+                    // 眨眼
+                    const eyes = creature.querySelectorAll('.eye');
+                    eyes.forEach(eye => {
+                        eye.style.transform = 'scaleY(0.1)';
+                    });
+                    setTimeout(() => {
+                        eyes.forEach(eye => eye.style.transform = '');
+                    }, 150);
+                    setTimeout(() => {
+                        eyes.forEach(eye => eye.style.transform = 'scaleY(0.1)');
+                        setTimeout(() => eyes.forEach(eye => eye.style.transform = ''), 150);
+                    }, 300);
+                } else if (rand < 0.7) {
+                    // 发光一下
+                    creature.style.boxShadow = '0 0 100px rgba(168, 216, 234, 0.8)';
+                    setTimeout(() => creature.style.boxShadow = '', 800);
+                } else if (rand < 0.85) {
+                    // 说点什么
+                    const idleMessages = ['...', '（看看四周）', '（发呆中）', '嗯...', '～'];
+                    statusMessage.textContent = idleMessages[Math.floor(Math.random() * idleMessages.length)];
+                    setTimeout(() => {
+                        if (!isRunning) updateCreatureState();
+                    }, 2000);
+                } else {
+                    // 变大一点点
+                    creature.style.width = '130px';
+                    creature.style.height = '130px';
+                    setTimeout(() => {
+                        creature.style.width = '';
+                        creature.style.height = '';
+                    }, 500);
+                }
+                
+            }, 3000 + Math.random() * 2000); // 3-5秒随机
+        }
+
+        // ==================== 消息 ====================
+        function getActivityMessage(activity) {
+            const messages = {
+                work: '专注中...我陪着你',
+                rest: '好好休息，这很重要',
+                create: '创造的时刻',
+                exercise: '动起来～',
+                social: '连接是珍贵的',
+                read: '沉浸在文字里...'
+            };
+            return messages[activity];
+        }
+
+        function getHappyMessage() {
+            const messages = ['在一起真好', '今天很平衡', '我感觉到你了', '就是这样'];
+            return messages[Math.floor(Math.random() * messages.length)];
+        }
+
+        function getCuriousMessage() {
+            const messages = ['你来了', '想靠近你', '今天怎么样？', '我在这里'];
+            return messages[Math.floor(Math.random() * messages.length)];
+        }
+
+        function getWorriedMessage() {
+            const messages = ['你累了吧？', '要不要休息一下', '我有点担心你', '慢一点也可以'];
+            return messages[Math.floor(Math.random() * messages.length)];
+        }
+
+        function getUpsetMessage() {
+            // 低精力+低连接，但不要太aggressive
+            const messages = ['...在这里', '（安静地看着你）', '需要休息吗', '慢慢来'];
+            return messages[Math.floor(Math.random() * messages.length)];
+        }
+
+        function getClickResponse() {
+            const energy = state.energy;
+            const bonding = state.bonding;
+            
+            if (bonding > 50) {
+                return ['嗯！', '在～', '♡', '看到你了'][Math.floor(Math.random() * 4)];
+            } else if (bonding > 20) {
+                return ['嗯', '嗨', '...在', '👀'][Math.floor(Math.random() * 4)];
+            } else {
+                // 新朋友，还是要友好
+                return ['你好', '嗨...', '（眨眨眼）', '嗯'][Math.floor(Math.random() * 4)];
+            }
+        }
+
+        // ==================== 提醒 ====================
+        function playNotification() {
+            // 震动
+            if ('vibrate' in navigator) {
+                navigator.vibrate([200, 100, 200, 100, 200]);
+            }
+            
+            // 视觉提示
+            creature.classList.add('timer-done');
+            statusMessage.textContent = '时间到了～';
+            
+            // 尝试播放声音
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 440;
+                oscillator.type = 'sine';
+                gainNode.gain.value = 0.3;
+                
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (e) {
+                console.log('无法播放声音');
+            }
+            
+            setTimeout(() => {
+                creature.classList.remove('timer-done');
+            }, 2000);
+        }
+
+        // ==================== 保存 ====================
+        function saveState() {
+            state.lastVisit = Date.now();
+            localStorage.setItem('queertime-state', JSON.stringify(state));
+        }
+
+        // 页面关闭前保存
+        window.addEventListener('beforeunload', saveState);
+    </script>
+</body>
+</html>
