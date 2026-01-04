@@ -881,6 +881,7 @@
                 register: '注册',
                 processing: '处理中...',
                 registerSuccess: '注册成功！请查收验证邮件',
+                enterEmailPassword: '请输入邮箱和密码',
                 // 关于
                 aboutTitle: '饿来食，困来眠',
                 aboutP1: '不是时间管理工具。不是待办清单。',
@@ -961,6 +962,7 @@
                 register: 'Register',
                 processing: 'Processing...',
                 registerSuccess: 'Registered! Check your email',
+                enterEmailPassword: 'Please enter email and password',
                 // 关于
                 aboutTitle: 'Eat when hungry, Sleep when tired',
                 aboutP1: 'Not a time management tool. Not a to-do list.',
@@ -998,6 +1000,7 @@
             // 其他按钮
             document.getElementById('timer-label-1').textContent = t('setTime');
             document.getElementById('timer-label-2').textContent = t('minutes');
+            document.getElementById('timer-input').placeholder = t('minutes');
             document.getElementById('start-btn').textContent = t('start');
             document.getElementById('stop-btn').textContent = t('end');
             document.getElementById('checkin-btn').textContent = t('bePresent');
@@ -1024,6 +1027,16 @@
             document.getElementById('log-cancel').textContent = t('cancel');
             document.getElementById('log-confirm').textContent = t('confirm');
             
+            // 补记弹窗的活动选项
+            const logSelect = document.getElementById('log-activity');
+            logSelect.options[0].textContent = t('work');
+            logSelect.options[1].textContent = t('rest');
+            logSelect.options[2].textContent = t('create');
+            logSelect.options[3].textContent = t('exercise');
+            logSelect.options[4].textContent = t('social');
+            logSelect.options[5].textContent = t('read');
+            document.getElementById('log-minutes').placeholder = t('minutes');
+            
             // 登录弹窗
             document.getElementById('auth-modal-title').textContent = t('authTitle');
             document.getElementById('auth-modal-desc').textContent = t('authDesc');
@@ -1032,6 +1045,7 @@
             document.getElementById('auth-no-account').textContent = t('noAccount');
             document.getElementById('auth-cancel').textContent = t('cancel');
             document.getElementById('auth-confirm').textContent = t('login');
+            document.getElementById('auth-toggle').textContent = t('register');
             
             // 关于弹窗
             document.getElementById('about-title').textContent = t('aboutTitle');
@@ -1146,9 +1160,9 @@
 
         authToggle.addEventListener('click', () => {
             isSignUp = !isSignUp;
-            authModalTitle.textContent = isSignUp ? '注册' : '登录';
-            authConfirm.textContent = isSignUp ? '注册' : '登录';
-            authToggle.textContent = isSignUp ? '登录' : '注册';
+            authModalTitle.textContent = isSignUp ? t('register') : t('login');
+            authConfirm.textContent = isSignUp ? t('register') : t('login');
+            authToggle.textContent = isSignUp ? t('login') : t('register');
         });
 
         authConfirm.addEventListener('click', async () => {
@@ -1156,19 +1170,19 @@
             const password = authPasswordInput.value;
 
             if (!email || !password) {
-                authMessage.textContent = '请输入邮箱和密码';
+                authMessage.textContent = t('enterEmailPassword');
                 authMessage.classList.add('error');
                 return;
             }
 
-            authMessage.textContent = '处理中...';
+            authMessage.textContent = t('processing');
             authMessage.classList.remove('error');
 
             try {
                 if (isSignUp) {
                     const { data, error } = await supabaseClient.auth.signUp({ email, password });
                     if (error) throw error;
-                    authMessage.textContent = '注册成功！请查收验证邮件';
+                    authMessage.textContent = t('registerSuccess');
                     authMessage.classList.remove('error');
                 } else {
                     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -1200,10 +1214,10 @@
         function updateAuthUI() {
             if (currentUser) {
                 userEmail.textContent = currentUser.email;
-                authBtn.textContent = '退出';
+                authBtn.textContent = t('logout');
             } else {
-                userEmail.textContent = '未登录';
-                authBtn.textContent = '登录';
+                userEmail.textContent = t('notLoggedIn');
+                authBtn.textContent = t('login');
                 syncStatus.textContent = '';
             }
         }
