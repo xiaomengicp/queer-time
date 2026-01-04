@@ -1390,6 +1390,14 @@
                 // 保存质地数据
                 saveTexture(currentTextureActivity, currentTextureMinutes, color);
                 
+                // 选了颜色，连接 +2（愿意停下来感受）
+                state.bonding = Math.min(100, state.bonding + 2);
+                
+                // 根据颜色调整精力
+                adjustEnergyByColor(color, currentTextureMinutes);
+                
+                updateDisplay();
+                
                 // 小球吸收颜色的视觉效果
                 const colorMap = {
                     red: '#e74c3c',
@@ -1428,7 +1436,7 @@
             // 更新精力
             updateEnergyOnly(activity, minutes);
             
-            // 连接变化
+            // 连接变化（颜色选择时额外加，这里是基础的）
             if (state.energy > 35) {
                 state.bonding = Math.min(100, state.bonding + Math.floor(minutes / 3));
             } else {
@@ -1442,24 +1450,42 @@
 
         // 只更新精力，不更新连接（用于补记）
         function updateEnergyOnly(activity, minutes) {
-            // 计算活动多样性
-            const types = ['work', 'rest', 'create', 'exercise', 'social', 'read'];
-            const activeTypes = types.filter(t => todayLogs[t] > 0).length;
-            const total = types.reduce((sum, t) => sum + todayLogs[t], 0);
-            
-            // 精力变化
             if (activity === 'rest') {
+                // 休息恢复精力
                 state.energy = Math.min(100, state.energy + Math.floor(minutes / 2));
             } else if (activity === 'exercise') {
-                state.energy = Math.min(100, state.energy + Math.floor(minutes / 4));
-            } else if (activeTypes >= 3) {
-                // 多样性好，精力轻微上升
-                state.energy = Math.min(100, state.energy + Math.floor(minutes / 8));
-            } else if (activeTypes <= 2 && total > 60) {
-                // 单一活动超过60分钟，消耗精力
-                state.energy = Math.max(0, state.energy - Math.floor(minutes / 5));
+                // 运动：轻微消耗但也有恢复效果，净效果接近持平或轻微恢复
+                state.energy = Math.min(100, state.energy + Math.floor(minutes / 6));
+            } else {
+                // 其他活动都消耗精力
+                const types = ['work', 'rest', 'create', 'exercise', 'social', 'read'];
+                const activeTypes = types.filter(t => todayLogs[t] > 0).length;
+                
+                if (activeTypes >= 3) {
+                    // 多样性好，消耗慢
+                    state.energy = Math.max(0, state.energy - Math.floor(minutes / 8));
+                } else {
+                    // 单一活动，消耗快
+                    state.energy = Math.max(0, state.energy - Math.floor(minutes / 5));
+                }
             }
-            // 其他情况精力不变
+            
+            saveStateLocal();
+        }
+        
+        // 根据颜色调整精力（活动结束选颜色时调用）
+        function adjustEnergyByColor(color, minutes) {
+            const warmColors = ['red', 'orange', 'yellow'];
+            const coolColors = ['cyan', 'blue', 'purple'];
+            
+            if (warmColors.includes(color)) {
+                // 暖色：激烈/紧张，额外消耗一点
+                state.energy = Math.max(0, state.energy - Math.floor(minutes / 10));
+            } else if (coolColors.includes(color)) {
+                // 冷色：平静/放松，恢复一点
+                state.energy = Math.min(100, state.energy + Math.floor(minutes / 10));
+            }
+            // 绿色：中性，不额外调整
             
             saveStateLocal();
         }
