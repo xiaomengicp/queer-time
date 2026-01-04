@@ -333,6 +333,24 @@
             transform: scale(1.05);
         }
 
+        .checkin-btn {
+            padding: 8px 24px;
+            border: 1px solid rgba(168, 216, 234, 0.4);
+            border-radius: 20px;
+            background: transparent;
+            color: #a8d8ea;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .checkin-btn:hover {
+            background: rgba(168, 216, 234, 0.1);
+            border-color: #a8d8ea;
+        }
+
         .balance-container {
             width: 100%;
             max-width: 360px;
@@ -675,6 +693,8 @@
         <button class="control-btn stop-btn" id="stop-btn" style="display: none;">结束</button>
     </div>
     
+    <button class="checkin-btn" id="checkin-btn">共在</button>
+    
     <div class="balance-container">
         <div class="balance-title">今日平衡</div>
         <div class="balance-bars" id="balance-bars">
@@ -712,7 +732,6 @@
     </div>
     
     <div class="bottom-buttons">
-        <button class="reset-btn" id="checkin-btn">共在</button>
         <button class="reset-btn" id="log-btn">补记</button>
         <button class="reset-btn" id="reset-btn">重置今日</button>
         <button class="reset-btn" id="export-btn">导出</button>
