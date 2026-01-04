@@ -733,6 +733,7 @@
     
     <div class="bottom-buttons">
         <button class="reset-btn" id="log-btn">补记</button>
+        <button class="reset-btn" id="about-btn">关于</button>
         <button class="reset-btn" id="reset-btn">重置今日</button>
         <button class="reset-btn" id="export-btn">导出</button>
     </div>
@@ -780,6 +781,23 @@
             <div style="text-align: center; margin-top: 15px;">
                 <span style="color: #666; font-size: 0.8rem;">没有账号？</span>
                 <button style="background: none; border: none; color: #a8d8ea; font-size: 0.8rem; cursor: pointer;" id="auth-toggle">注册</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 关于弹窗 -->
+    <div class="modal-overlay" id="about-modal" style="display: none;">
+        <div class="modal" style="max-width: 320px;">
+            <div class="modal-title">饿来食，困来眠</div>
+            <div style="color: #888; font-size: 0.85rem; line-height: 1.6;">
+                <p style="margin-bottom: 12px;">不是时间管理工具。不是待办清单。</p>
+                <p style="margin-bottom: 12px;">是一个小小的存在，陪着你。</p>
+                <p style="margin-bottom: 12px;">它是你内在小孩的外在化。照顾它，其实是照顾自己。</p>
+                <p style="margin-bottom: 16px; color: #666; font-size: 0.8rem;">六种活动，六种滋养：<br>工作(经济)、休息(身体)、创造(精神)<br>运动(精力)、社交(关系)、阅读(智识)</p>
+                <p style="color: #a8d8ea; font-style: italic;">饿了就吃，困了就睡。</p>
+            </div>
+            <div class="modal-buttons" style="margin-top: 20px;">
+                <button class="modal-btn confirm" id="about-close" style="flex: 1;">好</button>
             </div>
         </div>
     </div>
@@ -1305,6 +1323,25 @@
             if (e.target === logModal) {
                 logModal.style.display = 'none';
                 logMinutes.value = '';
+            }
+        });
+
+        // ==================== 关于弹窗 ====================
+        const aboutModal = document.getElementById('about-modal');
+        const aboutBtn = document.getElementById('about-btn');
+        const aboutClose = document.getElementById('about-close');
+
+        aboutBtn.addEventListener('click', () => {
+            aboutModal.style.display = 'flex';
+        });
+
+        aboutClose.addEventListener('click', () => {
+            aboutModal.style.display = 'none';
+        });
+
+        aboutModal.addEventListener('click', (e) => {
+            if (e.target === aboutModal) {
+                aboutModal.style.display = 'none';
             }
         });
 
