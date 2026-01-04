@@ -546,6 +546,66 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.1); }
         }
+
+        /* 时间的质地 - 颜色选择器 */
+        .texture-picker {
+            display: none;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .texture-picker.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .texture-picker.fade-out {
+            opacity: 0;
+        }
+
+        .texture-color {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .texture-color:hover {
+            transform: scale(1.2);
+        }
+
+        .texture-color:active {
+            transform: scale(0.95);
+        }
+
+        .texture-color.red { background: #e74c3c; }
+        .texture-color.orange { background: #e67e22; }
+        .texture-color.yellow { background: #f1c40f; }
+        .texture-color.green { background: #2ecc71; }
+        .texture-color.cyan { background: #1abc9c; }
+        .texture-color.blue { background: #3498db; }
+        .texture-color.purple { background: #9b59b6; }
+
+        .texture-color.selected {
+            box-shadow: 0 0 20px currentColor;
+            transform: scale(1.1);
+        }
+
+        /* 小球吸收颜色的动画 */
+        @keyframes absorb-color {
+            0% { box-shadow: 0 0 60px var(--absorb-color); }
+            50% { box-shadow: 0 0 100px var(--absorb-color); }
+            100% { box-shadow: 0 0 60px rgba(168, 216, 234, 0.4); }
+        }
+
+        .creature.absorbing {
+            animation: absorb-color 0.8s ease-out;
+        }
     </style>
 </head>
 <body>
@@ -579,6 +639,17 @@
     </div>
     
     <div class="status-message" id="status-message">你来了</div>
+    
+    <!-- 时间的质地 - 颜色选择器 -->
+    <div class="texture-picker" id="texture-picker">
+        <div class="texture-color red" data-color="red"></div>
+        <div class="texture-color orange" data-color="orange"></div>
+        <div class="texture-color yellow" data-color="yellow"></div>
+        <div class="texture-color green" data-color="green"></div>
+        <div class="texture-color cyan" data-color="cyan"></div>
+        <div class="texture-color blue" data-color="blue"></div>
+        <div class="texture-color purple" data-color="purple"></div>
+    </div>
     
     <div class="timer-display" id="timer-display">00:00</div>
     
@@ -956,7 +1027,10 @@
 
                 updateDisplay();
                 updateBalanceBars();
-                updateCreatureState();
+                // 如果有活动进行中，保持活动颜色，否则更新状态
+                if (!isRunning) {
+                    updateCreatureState();
+                }
 
                 syncStatus.textContent = '已同步';
                 syncStatus.className = 'sync-status';
@@ -1183,13 +1257,17 @@
                 return;
             }
             
-            // 只记录数据，不增加连接值
+            // 记录数据
             todayLogs[activity] += minutes;
             allData[today] = todayLogs;
             localStorage.setItem('queertime-all', JSON.stringify(allData));
             
+            // 补记也更新精力（但不加连接）
+            updateEnergyOnly(activity, minutes);
+            
             // 更新显示
             updateBalanceBars();
+            updateDisplay();
             
             // 同步到云
             syncToCloud();
@@ -1237,6 +1315,7 @@
             const elapsedMinutes = Math.max(1, Math.floor((Date.now() - startTime) / 1000 / 60));
             
             // 记录活动
+            const finishedActivity = selectedActivity;
             todayLogs[selectedActivity] += elapsedMinutes;
             allData[today] = todayLogs;
             localStorage.setItem('queertime-all', JSON.stringify(allData));
@@ -1262,12 +1341,107 @@
             updateDisplay();
             updateCreatureState();
             
+            // 显示时间质地颜色选择器
+            showTexturePicker(finishedActivity, elapsedMinutes);
+            
             // 同步到云
             syncToCloud();
             saveOngoingToCloud();
         }
 
+        // 时间的质地
+        const texturePicker = document.getElementById('texture-picker');
+        let textureTimeout = null;
+        let currentTextureActivity = null;
+        let currentTextureMinutes = 0;
+
+        function showTexturePicker(activity, minutes) {
+            currentTextureActivity = activity;
+            currentTextureMinutes = minutes;
+            
+            texturePicker.classList.add('show');
+            statusMessage.textContent = '这段时间的感觉？';
+            
+            // 3秒后自动消失
+            textureTimeout = setTimeout(() => {
+                hideTexturePicker();
+            }, 4000);
+        }
+
+        function hideTexturePicker() {
+            if (textureTimeout) {
+                clearTimeout(textureTimeout);
+                textureTimeout = null;
+            }
+            texturePicker.classList.add('fade-out');
+            setTimeout(() => {
+                texturePicker.classList.remove('show', 'fade-out');
+                if (!isRunning) {
+                    updateCreatureState();
+                }
+            }, 300);
+        }
+
+        // 颜色选择
+        document.querySelectorAll('.texture-color').forEach(colorBtn => {
+            colorBtn.addEventListener('click', () => {
+                const color = colorBtn.dataset.color;
+                
+                // 保存质地数据
+                saveTexture(currentTextureActivity, currentTextureMinutes, color);
+                
+                // 小球吸收颜色的视觉效果
+                const colorMap = {
+                    red: '#e74c3c',
+                    orange: '#e67e22', 
+                    yellow: '#f1c40f',
+                    green: '#2ecc71',
+                    cyan: '#1abc9c',
+                    blue: '#3498db',
+                    purple: '#9b59b6'
+                };
+                creature.style.setProperty('--absorb-color', colorMap[color]);
+                creature.classList.add('absorbing');
+                setTimeout(() => creature.classList.remove('absorbing'), 800);
+                
+                // 隐藏选择器
+                hideTexturePicker();
+                statusMessage.textContent = '记下了';
+            });
+        });
+
+        function saveTexture(activity, minutes, color) {
+            // 保存到本地
+            const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
+            textureData.push({
+                date: today,
+                activity: activity,
+                minutes: minutes,
+                color: color,
+                timestamp: Date.now()
+            });
+            localStorage.setItem('queertime-textures', JSON.stringify(textureData));
+            // TODO: 后面可以同步到云端
+        }
+
         function updateEnergyAndBonding(activity, minutes) {
+            // 更新精力
+            updateEnergyOnly(activity, minutes);
+            
+            // 连接变化
+            if (state.energy > 35) {
+                state.bonding = Math.min(100, state.bonding + Math.floor(minutes / 3));
+            } else {
+                if (activity === 'rest') {
+                    state.bonding = Math.min(100, state.bonding + Math.floor(minutes / 2));
+                }
+            }
+            
+            saveStateLocal();
+        }
+
+        // 只更新精力，不更新连接（用于补记）
+        function updateEnergyOnly(activity, minutes) {
             // 计算活动多样性
             const types = ['work', 'rest', 'create', 'exercise', 'social', 'read'];
             const activeTypes = types.filter(t => todayLogs[t] > 0).length;
@@ -1279,19 +1453,13 @@
             } else if (activity === 'exercise') {
                 state.energy = Math.min(100, state.energy + Math.floor(minutes / 4));
             } else if (activeTypes >= 3) {
+                // 多样性好，精力轻微上升
                 state.energy = Math.min(100, state.energy + Math.floor(minutes / 8));
-            } else if (activeTypes === 1 && total > 60) {
+            } else if (activeTypes <= 2 && total > 60) {
+                // 单一活动超过60分钟，消耗精力
                 state.energy = Math.max(0, state.energy - Math.floor(minutes / 5));
             }
-            
-            // 连接变化
-            if (state.energy > 35) {
-                state.bonding = Math.min(100, state.bonding + Math.floor(minutes / 3));
-            } else {
-                if (activity === 'rest') {
-                    state.bonding = Math.min(100, state.bonding + Math.floor(minutes / 2));
-                }
-            }
+            // 其他情况精力不变
             
             saveStateLocal();
         }
