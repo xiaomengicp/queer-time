@@ -120,6 +120,16 @@
 ## 链接
 
 - 线上版本：https://queertime.netlify.app
+- GitHub 仓库：https://github.com/xiaomengicp/queer-time
+- 自动部署：GitHub push → Netlify 自动更新
+
+---
+
+## 开发流程
+
+1. 在 VS Code 里改 `index.html`
+2. 终端跑 `git add . && git commit -m "改了什么" && git push`
+3. 等一分钟，网站自动更新
 
 ---
 
