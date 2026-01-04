@@ -698,7 +698,13 @@
         const SUPABASE_URL = 'https://kkocffqigydkupprgayh.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtrb2NmZnFpZ3lka3VwcHJnYXloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1MjMyOTksImV4cCI6MjA4MzA5OTI5OX0.pnmK_OP3FplrgU4L2XJFEg9ek0M3n0VwTjliiRscG4U';
         
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+            auth: {
+                persistSession: true,
+                storageKey: 'queertime-auth',
+                storage: window.localStorage
+            }
+        });
         
         let currentUser = null;
         let isSyncing = false;
@@ -939,29 +945,13 @@
 
                 if (ongoingData && ongoingData.start_time) {
                     const cloudStartTime = new Date(ongoingData.start_time).getTime();
-                    const elapsedMinutes = Math.floor((Date.now() - cloudStartTime) / 1000 / 60);
-                    
-                    if (elapsedMinutes < 480) {
-                        // 恢复云端的活动
-                        selectedActivity = ongoingData.activity;
-                        startTime = cloudStartTime;
-                        targetMinutes = ongoingData.target_minutes;
-                        isRunning = true;
-                        
-                        startBtn.style.display = 'none';
-                        stopBtn.style.display = 'inline-block';
-                        timerSettings.style.display = 'none';
-                        
-                        document.querySelector(`.activity-btn[data-type="${selectedActivity}"]`)?.classList.add('active');
-                        
-                        updateCreatureActivity(selectedActivity);
-                        const activityNames = { work: '工作', rest: '休息', create: '创造', exercise: '运动', social: '社交', read: '阅读' };
-                        currentActivity.textContent = `正在${activityNames[selectedActivity]}...`;
-                        statusMessage.textContent = `欢迎回来，继续${activityNames[selectedActivity]}中`;
-                        
-                        timerInterval = setInterval(updateTimer, 1000);
-                        updateTimer();
-                    }
+                    restoreOngoingActivity(ongoingData.activity, cloudStartTime, ongoingData.target_minutes);
+                    // 同步本地存储
+                    localStorage.setItem('queertime-ongoing', JSON.stringify({
+                        activity: ongoingData.activity,
+                        startTime: cloudStartTime,
+                        targetMinutes: ongoingData.target_minutes
+                    }));
                 }
 
                 updateDisplay();
@@ -1003,12 +993,44 @@
 
         // ==================== 初始化 ====================
         
+        // 恢复进行中活动的函数
+        function restoreOngoingActivity(activity, activityStartTime, activityTargetMinutes) {
+            if (isRunning) return; // 已经在运行了
+            
+            const elapsedMinutes = Math.floor((Date.now() - activityStartTime) / 1000 / 60);
+            if (elapsedMinutes >= 480) return; // 超过8小时不恢复
+            
+            selectedActivity = activity;
+            startTime = activityStartTime;
+            targetMinutes = activityTargetMinutes;
+            isRunning = true;
+            
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-block';
+            timerSettings.style.display = 'none';
+            
+            document.querySelectorAll('.activity-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.activity-btn[data-type="${activity}"]`)?.classList.add('active');
+            
+            updateCreatureActivity(activity);
+            const activityNames = { work: '工作', rest: '休息', create: '创造', exercise: '运动', social: '社交', read: '阅读' };
+            currentActivity.textContent = `正在${activityNames[activity]}...`;
+            statusMessage.textContent = `欢迎回来，继续${activityNames[activity]}中`;
+            
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+            updateTimer();
+        }
+
         // 检查登录状态
         supabaseClient.auth.getSession().then(({ data: { session } }) => {
             if (session) {
                 currentUser = session.user;
                 updateAuthUI();
                 syncFromCloud();
+            } else {
+                // 未登录，尝试从本地恢复
+                restoreFromLocal();
             }
         });
 
@@ -1024,6 +1046,14 @@
             }
         });
 
+        // 从本地恢复进行中的活动
+        function restoreFromLocal() {
+            const ongoing = JSON.parse(localStorage.getItem('queertime-ongoing'));
+            if (ongoing && ongoing.startTime) {
+                restoreOngoingActivity(ongoing.activity, ongoing.startTime, ongoing.targetMinutes);
+            }
+        }
+
         // 检查离开了多久，连接值下降
         const timeSinceLastVisit = (Date.now() - state.lastVisit) / 1000 / 60 / 60; // 小时
         if (timeSinceLastVisit > 6) {
@@ -1038,37 +1068,6 @@
         updateBalanceBars();
         updateCreatureState();
         startIdleActions();
-
-        // 检查是否有未完成的活动（本地）
-        const ongoing = JSON.parse(localStorage.getItem('queertime-ongoing'));
-        if (ongoing && ongoing.startTime && !isRunning) {
-            const elapsedMinutes = Math.floor((Date.now() - ongoing.startTime) / 1000 / 60);
-            if (elapsedMinutes < 480) {
-                // 恢复活动
-                selectedActivity = ongoing.activity;
-                startTime = ongoing.startTime;
-                targetMinutes = ongoing.targetMinutes;
-                isRunning = true;
-                
-                // 更新UI
-                startBtn.style.display = 'none';
-                stopBtn.style.display = 'inline-block';
-                timerSettings.style.display = 'none';
-                
-                // 高亮对应按钮
-                document.querySelector(`.activity-btn[data-type="${ongoing.activity}"]`)?.classList.add('active');
-                
-                updateCreatureActivity(selectedActivity);
-                const activityNames = { work: '工作', rest: '休息', create: '创造', exercise: '运动', social: '社交', read: '阅读' };
-                currentActivity.textContent = `正在${activityNames[selectedActivity]}...`;
-                statusMessage.textContent = `欢迎回来，继续${activityNames[selectedActivity]}中`;
-                
-                timerInterval = setInterval(updateTimer, 1000);
-                updateTimer();
-            } else {
-                localStorage.removeItem('queertime-ongoing');
-            }
-        }
 
         // 点击宠物
         creatureContainer.addEventListener('click', () => {
