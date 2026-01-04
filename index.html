@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>饿来食 困来眠</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -28,6 +29,44 @@
             margin-bottom: 10px;
             color: #a8d8ea;
             letter-spacing: 2px;
+        }
+
+        /* 用户状态栏 */
+        .user-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 0.75rem;
+        }
+
+        .user-email {
+            color: #666;
+        }
+
+        .sync-status {
+            color: #55efc4;
+        }
+
+        .sync-status.syncing {
+            color: #fdcb6e;
+        }
+
+        .sync-status.error {
+            color: #ff7675;
+        }
+
+        .auth-btn {
+            padding: 4px 12px;
+            background: transparent;
+            border: 1px solid rgba(168, 216, 234, 0.3);
+            border-radius: 10px;
+            color: #a8d8ea;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+
+        .auth-btn:hover {
+            background: rgba(168, 216, 234, 0.1);
         }
 
         .stats-bar {
@@ -356,6 +395,8 @@
             display: flex;
             gap: 10px;
             margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         .reset-btn {
@@ -373,7 +414,7 @@
             color: #aaa;
         }
 
-        /* 补记弹窗 */
+        /* 弹窗 */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -468,6 +509,34 @@
             color: #1a1a2e;
         }
 
+        /* 登录表单 */
+        .auth-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(168, 216, 234, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #e8e8e8;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .auth-input:focus {
+            outline: none;
+            border-color: #a8d8ea;
+        }
+
+        .auth-message {
+            font-size: 0.8rem;
+            color: #55efc4;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .auth-message.error {
+            color: #ff7675;
+        }
+
         /* 提醒音效提示 */
         .timer-done {
             animation: pulse 0.5s ease-in-out 3;
@@ -481,6 +550,13 @@
 </head>
 <body>
     <h1>饿来食 困来眠</h1>
+    
+    <!-- 用户状态栏 -->
+    <div class="user-bar">
+        <span class="user-email" id="user-email">未登录</span>
+        <span class="sync-status" id="sync-status"></span>
+        <button class="auth-btn" id="auth-btn">登录</button>
+    </div>
     
     <div class="stats-bar">
         <div class="stat">
@@ -598,7 +674,35 @@
         </div>
     </div>
 
+    <!-- 登录弹窗 -->
+    <div class="modal-overlay" id="auth-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-title" id="auth-modal-title">登录</div>
+            <div class="modal-desc">登录后数据会自动同步到云端</div>
+            <div class="auth-message" id="auth-message"></div>
+            <input type="email" class="auth-input" id="auth-email" placeholder="邮箱">
+            <input type="password" class="auth-input" id="auth-password" placeholder="密码">
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" id="auth-cancel">取消</button>
+                <button class="modal-btn confirm" id="auth-confirm">登录</button>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <span style="color: #666; font-size: 0.8rem;">没有账号？</span>
+                <button style="background: none; border: none; color: #a8d8ea; font-size: 0.8rem; cursor: pointer;" id="auth-toggle">注册</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // ==================== Supabase 配置 ====================
+        const SUPABASE_URL = 'https://kkocffqigydkupprgayh.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtrb2NmZnFpZ3lka3VwcHJnYXloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1MjMyOTksImV4cCI6MjA4MzA5OTI5OX0.pnmK_OP3FplrgU4L2XJFEg9ek0M3n0VwTjliiRscG4U';
+        
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        let currentUser = null;
+        let isSyncing = false;
+
         // ==================== 状态 ====================
         let selectedActivity = null;
         let isRunning = false;
@@ -608,7 +712,7 @@
         let idleActionInterval = null;
 
         // ==================== 数据存储 ====================
-        const today = new Date().toDateString();
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 格式
         
         // 读取所有历史数据
         let allData = JSON.parse(localStorage.getItem('queertime-all') || '{}');
@@ -621,8 +725,8 @@
 
         // 精力和连接值
         let state = JSON.parse(localStorage.getItem('queertime-state') || '{}');
-        if (!state.energy) state.energy = 50;
-        if (!state.bonding) state.bonding = 0;
+        if (state.energy === undefined) state.energy = 50;
+        if (state.bonding === undefined) state.bonding = 0;
         if (!state.lastVisit) state.lastVisit = Date.now();
 
         // ==================== DOM ====================
@@ -639,9 +743,287 @@
         const exportBtn = document.getElementById('export-btn');
         const energyDisplay = document.getElementById('energy-display');
         const bondingDisplay = document.getElementById('bonding-display');
+        const userEmail = document.getElementById('user-email');
+        const syncStatus = document.getElementById('sync-status');
+        const authBtn = document.getElementById('auth-btn');
+
+        // ==================== 认证相关 ====================
+        const authModal = document.getElementById('auth-modal');
+        const authModalTitle = document.getElementById('auth-modal-title');
+        const authMessage = document.getElementById('auth-message');
+        const authEmailInput = document.getElementById('auth-email');
+        const authPasswordInput = document.getElementById('auth-password');
+        const authCancel = document.getElementById('auth-cancel');
+        const authConfirm = document.getElementById('auth-confirm');
+        const authToggle = document.getElementById('auth-toggle');
+
+        let isSignUp = false;
+
+        authBtn.addEventListener('click', () => {
+            if (currentUser) {
+                // 已登录，退出
+                signOut();
+            } else {
+                // 未登录，显示登录弹窗
+                authModal.style.display = 'flex';
+            }
+        });
+
+        authCancel.addEventListener('click', () => {
+            authModal.style.display = 'none';
+            authMessage.textContent = '';
+            authEmailInput.value = '';
+            authPasswordInput.value = '';
+        });
+
+        authToggle.addEventListener('click', () => {
+            isSignUp = !isSignUp;
+            authModalTitle.textContent = isSignUp ? '注册' : '登录';
+            authConfirm.textContent = isSignUp ? '注册' : '登录';
+            authToggle.textContent = isSignUp ? '登录' : '注册';
+        });
+
+        authConfirm.addEventListener('click', async () => {
+            const email = authEmailInput.value.trim();
+            const password = authPasswordInput.value;
+
+            if (!email || !password) {
+                authMessage.textContent = '请输入邮箱和密码';
+                authMessage.classList.add('error');
+                return;
+            }
+
+            authMessage.textContent = '处理中...';
+            authMessage.classList.remove('error');
+
+            try {
+                if (isSignUp) {
+                    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                    if (error) throw error;
+                    authMessage.textContent = '注册成功！请查收验证邮件';
+                    authMessage.classList.remove('error');
+                } else {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    authModal.style.display = 'none';
+                    authEmailInput.value = '';
+                    authPasswordInput.value = '';
+                }
+            } catch (error) {
+                authMessage.textContent = error.message;
+                authMessage.classList.add('error');
+            }
+        });
+
+        // 点击遮罩关闭
+        authModal.addEventListener('click', (e) => {
+            if (e.target === authModal) {
+                authModal.style.display = 'none';
+                authMessage.textContent = '';
+            }
+        });
+
+        async function signOut() {
+            await supabaseClient.auth.signOut();
+            currentUser = null;
+            updateAuthUI();
+        }
+
+        function updateAuthUI() {
+            if (currentUser) {
+                userEmail.textContent = currentUser.email;
+                authBtn.textContent = '退出';
+            } else {
+                userEmail.textContent = '未登录';
+                authBtn.textContent = '登录';
+                syncStatus.textContent = '';
+            }
+        }
+
+        // ==================== 云同步 ====================
+        async function syncToCloud() {
+            if (!currentUser || isSyncing) return;
+            
+            isSyncing = true;
+            syncStatus.textContent = '同步中...';
+            syncStatus.className = 'sync-status syncing';
+
+            try {
+                // 同步用户状态
+                const { error: stateError } = await supabaseClient
+                    .from('user_state')
+                    .upsert({
+                        user_id: currentUser.id,
+                        energy: Math.round(state.energy),
+                        bonding: Math.round(state.bonding),
+                        last_visit: new Date(state.lastVisit).toISOString(),
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
+
+                if (stateError) throw stateError;
+
+                // 同步今日记录
+                const { error: logsError } = await supabaseClient
+                    .from('daily_logs')
+                    .upsert({
+                        user_id: currentUser.id,
+                        log_date: today,
+                        work: todayLogs.work,
+                        rest: todayLogs.rest,
+                        create_time: todayLogs.create,
+                        exercise: todayLogs.exercise,
+                        social: todayLogs.social,
+                        read: todayLogs.read,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id,log_date' });
+
+                if (logsError) throw logsError;
+
+                syncStatus.textContent = '已同步';
+                syncStatus.className = 'sync-status';
+            } catch (error) {
+                console.error('同步失败:', error);
+                syncStatus.textContent = '同步失败';
+                syncStatus.className = 'sync-status error';
+            } finally {
+                isSyncing = false;
+            }
+        }
+
+        async function syncFromCloud() {
+            if (!currentUser) return;
+
+            syncStatus.textContent = '加载中...';
+            syncStatus.className = 'sync-status syncing';
+
+            try {
+                // 读取用户状态
+                const { data: stateData, error: stateError } = await supabaseClient
+                    .from('user_state')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .single();
+
+                if (stateData) {
+                    state.energy = stateData.energy;
+                    state.bonding = stateData.bonding;
+                    state.lastVisit = new Date(stateData.last_visit).getTime();
+                    saveStateLocal();
+                }
+
+                // 读取今日记录
+                const { data: logsData, error: logsError } = await supabaseClient
+                    .from('daily_logs')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .eq('log_date', today)
+                    .single();
+
+                if (logsData) {
+                    todayLogs.work = logsData.work;
+                    todayLogs.rest = logsData.rest;
+                    todayLogs.create = logsData.create_time;
+                    todayLogs.exercise = logsData.exercise;
+                    todayLogs.social = logsData.social;
+                    todayLogs.read = logsData.read;
+                    allData[today] = todayLogs;
+                    localStorage.setItem('queertime-all', JSON.stringify(allData));
+                }
+
+                // 检查进行中的活动
+                const { data: ongoingData } = await supabaseClient
+                    .from('ongoing_activity')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .single();
+
+                if (ongoingData && ongoingData.start_time) {
+                    const cloudStartTime = new Date(ongoingData.start_time).getTime();
+                    const elapsedMinutes = Math.floor((Date.now() - cloudStartTime) / 1000 / 60);
+                    
+                    if (elapsedMinutes < 480) {
+                        // 恢复云端的活动
+                        selectedActivity = ongoingData.activity;
+                        startTime = cloudStartTime;
+                        targetMinutes = ongoingData.target_minutes;
+                        isRunning = true;
+                        
+                        startBtn.style.display = 'none';
+                        stopBtn.style.display = 'inline-block';
+                        timerSettings.style.display = 'none';
+                        
+                        document.querySelector(`.activity-btn[data-type="${selectedActivity}"]`)?.classList.add('active');
+                        
+                        updateCreatureActivity(selectedActivity);
+                        const activityNames = { work: '工作', rest: '休息', create: '创造', exercise: '运动', social: '社交', read: '阅读' };
+                        currentActivity.textContent = `正在${activityNames[selectedActivity]}...`;
+                        statusMessage.textContent = `欢迎回来，继续${activityNames[selectedActivity]}中`;
+                        
+                        timerInterval = setInterval(updateTimer, 1000);
+                        updateTimer();
+                    }
+                }
+
+                updateDisplay();
+                updateBalanceBars();
+                updateCreatureState();
+
+                syncStatus.textContent = '已同步';
+                syncStatus.className = 'sync-status';
+            } catch (error) {
+                console.error('加载失败:', error);
+                syncStatus.textContent = '';
+            }
+        }
+
+        async function saveOngoingToCloud() {
+            if (!currentUser) return;
+
+            try {
+                if (isRunning) {
+                    await supabaseClient
+                        .from('ongoing_activity')
+                        .upsert({
+                            user_id: currentUser.id,
+                            activity: selectedActivity,
+                            start_time: new Date(startTime).toISOString(),
+                            target_minutes: targetMinutes,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id' });
+                } else {
+                    await supabaseClient
+                        .from('ongoing_activity')
+                        .delete()
+                        .eq('user_id', currentUser.id);
+                }
+            } catch (error) {
+                console.error('保存进行中活动失败:', error);
+            }
+        }
 
         // ==================== 初始化 ====================
         
+        // 检查登录状态
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                currentUser = session.user;
+                updateAuthUI();
+                syncFromCloud();
+            }
+        });
+
+        // 监听登录状态变化
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                currentUser = session.user;
+                updateAuthUI();
+                syncFromCloud();
+            } else if (event === 'SIGNED_OUT') {
+                currentUser = null;
+                updateAuthUI();
+            }
+        });
+
         // 检查离开了多久，连接值下降
         const timeSinceLastVisit = (Date.now() - state.lastVisit) / 1000 / 60 / 60; // 小时
         if (timeSinceLastVisit > 6) {
@@ -650,18 +1032,18 @@
             state.bonding = Math.max(0, state.bonding - decrease);
         }
         state.lastVisit = Date.now();
-        saveState();
+        saveStateLocal();
 
         updateDisplay();
         updateBalanceBars();
         updateCreatureState();
         startIdleActions();
 
-        // 检查是否有未完成的活动
+        // 检查是否有未完成的活动（本地）
         const ongoing = JSON.parse(localStorage.getItem('queertime-ongoing'));
-        if (ongoing && ongoing.startTime) {
+        if (ongoing && ongoing.startTime && !isRunning) {
             const elapsedMinutes = Math.floor((Date.now() - ongoing.startTime) / 1000 / 60);
-            if (elapsedMinutes < 480) { // 少于8小时才恢复
+            if (elapsedMinutes < 480) {
                 // 恢复活动
                 selectedActivity = ongoing.activity;
                 startTime = ongoing.startTime;
@@ -674,7 +1056,7 @@
                 timerSettings.style.display = 'none';
                 
                 // 高亮对应按钮
-                document.querySelector(`.activity-btn.${ongoing.activity === 'read' ? 'read' : ongoing.activity}`).classList.add('active');
+                document.querySelector(`.activity-btn[data-type="${ongoing.activity}"]`)?.classList.add('active');
                 
                 updateCreatureActivity(selectedActivity);
                 const activityNames = { work: '工作', rest: '休息', create: '创造', exercise: '运动', social: '社交', read: '阅读' };
@@ -682,18 +1064,14 @@
                 statusMessage.textContent = `欢迎回来，继续${activityNames[selectedActivity]}中`;
                 
                 timerInterval = setInterval(updateTimer, 1000);
-                updateTimer(); // 立即更新一次显示
+                updateTimer();
             } else {
-                // 超过8小时，清除
                 localStorage.removeItem('queertime-ongoing');
             }
         }
 
         // 点击宠物
         creatureContainer.addEventListener('click', () => {
-            // 点击本身就是连接，不需要加数值
-            
-            // 它注意到你了
             creature.classList.add('noticed-you');
             statusMessage.textContent = getClickResponse();
             
@@ -724,12 +1102,13 @@
             startTime = Date.now();
             targetMinutes = timerInput.value ? parseInt(timerInput.value) : null;
             
-            // 保存进行中的活动，防止页面被关闭
+            // 保存进行中的活动
             localStorage.setItem('queertime-ongoing', JSON.stringify({
                 activity: selectedActivity,
                 startTime: startTime,
                 targetMinutes: targetMinutes
             }));
+            saveOngoingToCloud();
             
             startBtn.style.display = 'none';
             stopBtn.style.display = 'inline-block';
@@ -756,6 +1135,7 @@
                 localStorage.setItem('queertime-all', JSON.stringify(allData));
                 updateBalanceBars();
                 updateCreatureState();
+                syncToCloud();
             }
         });
 
@@ -811,6 +1191,9 @@
             
             // 更新显示
             updateBalanceBars();
+            
+            // 同步到云
+            syncToCloud();
             
             // 关闭弹窗
             logModal.style.display = 'none';
@@ -879,6 +1262,10 @@
             updateBalanceBars();
             updateDisplay();
             updateCreatureState();
+            
+            // 同步到云
+            syncToCloud();
+            saveOngoingToCloud();
         }
 
         function updateEnergyAndBonding(activity, minutes) {
@@ -887,38 +1274,27 @@
             const activeTypes = types.filter(t => todayLogs[t] > 0).length;
             const total = types.reduce((sum, t) => sum + todayLogs[t], 0);
             
-            // 计算非休息活动中工作的占比
-            const nonRestTotal = total - todayLogs.rest;
-            const workRatio = nonRestTotal > 0 ? todayLogs.work / nonRestTotal : 0;
-            
             // 精力变化
             if (activity === 'rest') {
-                // 休息总是恢复精力
                 state.energy = Math.min(100, state.energy + Math.floor(minutes / 2));
             } else if (activity === 'exercise') {
-                // 运动也恢复一点精力
                 state.energy = Math.min(100, state.energy + Math.floor(minutes / 4));
             } else if (activeTypes >= 3) {
-                // 多样性好，精力维持，轻微上升
                 state.energy = Math.min(100, state.energy + Math.floor(minutes / 8));
             } else if (activeTypes === 1 && total > 60) {
-                // 单一活动超过60分钟才开始消耗
                 state.energy = Math.max(0, state.energy - Math.floor(minutes / 5));
             }
-            // 其他情况精力不变
             
             // 连接变化
             if (state.energy > 35) {
-                // 精力正常时，任何活动都增加连接
                 state.bonding = Math.min(100, state.bonding + Math.floor(minutes / 3));
             } else {
-                // 精力低时，只有休息增加连接
                 if (activity === 'rest') {
                     state.bonding = Math.min(100, state.bonding + Math.floor(minutes / 2));
                 }
             }
             
-            saveState();
+            saveStateLocal();
         }
 
         function updateDisplay() {
@@ -932,24 +1308,18 @@
             const energy = state.energy;
             const bonding = state.bonding;
             
-            // 精力低于35才算累
             const isLowEnergy = energy < 35;
-            // 连接高于30算有连接
             const hasConnection = bonding > 30;
             
             if (!isLowEnergy && hasConnection) {
-                // 正常精力 + 有连接 = 开心
                 creature.classList.add('happy');
                 statusMessage.textContent = getHappyMessage();
             } else if (!isLowEnergy && !hasConnection) {
-                // 正常精力 + 低连接 = 好奇，想认识你
                 statusMessage.textContent = getCuriousMessage();
             } else if (isLowEnergy && hasConnection) {
-                // 低精力 + 有连接 = 担心你
                 creature.classList.add('tired');
                 statusMessage.textContent = getWorriedMessage();
             } else {
-                // 低精力 + 低连接 = 需要关注
                 creature.classList.add('tired');
                 statusMessage.textContent = getUpsetMessage();
             }
@@ -984,14 +1354,12 @@
 
         // ==================== 小动作 ====================
         function startIdleActions() {
-            // 每隔一段时间随机做个小动作
             idleActionInterval = setInterval(() => {
-                if (isRunning) return; // 活动中不做
+                if (isRunning) return;
                 
                 const rand = Math.random();
                 
                 if (rand < 0.25) {
-                    // 东张西望 - 眼睛移动
                     const eyes = creature.querySelectorAll('.eye');
                     eyes[0].style.transform = 'translateX(-4px)';
                     eyes[1].style.transform = 'translateX(4px)';
@@ -1000,7 +1368,6 @@
                         eyes[1].style.transform = '';
                     }, 1500);
                 } else if (rand < 0.5) {
-                    // 眨眼
                     const eyes = creature.querySelectorAll('.eye');
                     eyes.forEach(eye => {
                         eye.style.transform = 'scaleY(0.1)';
@@ -1013,18 +1380,15 @@
                         setTimeout(() => eyes.forEach(eye => eye.style.transform = ''), 150);
                     }, 300);
                 } else if (rand < 0.7) {
-                    // 发光一下
                     creature.style.boxShadow = '0 0 100px rgba(168, 216, 234, 0.8)';
                     setTimeout(() => creature.style.boxShadow = '', 800);
                 } else if (rand < 0.85) {
-                    // 说点什么
                     const idleMessages = ['...', '（看看四周）', '（发呆中）', '嗯...', '～'];
                     statusMessage.textContent = idleMessages[Math.floor(Math.random() * idleMessages.length)];
                     setTimeout(() => {
                         if (!isRunning) updateCreatureState();
                     }, 2000);
                 } else {
-                    // 变大一点点
                     creature.style.width = '130px';
                     creature.style.height = '130px';
                     setTimeout(() => {
@@ -1033,7 +1397,7 @@
                     }, 500);
                 }
                 
-            }, 3000 + Math.random() * 2000); // 3-5秒随机
+            }, 3000 + Math.random() * 2000);
         }
 
         // ==================== 消息 ====================
@@ -1065,13 +1429,11 @@
         }
 
         function getUpsetMessage() {
-            // 低精力+低连接，但不要太aggressive
             const messages = ['...在这里', '（安静地看着你）', '需要休息吗', '慢慢来'];
             return messages[Math.floor(Math.random() * messages.length)];
         }
 
         function getClickResponse() {
-            const energy = state.energy;
             const bonding = state.bonding;
             
             if (bonding > 50) {
@@ -1079,23 +1441,19 @@
             } else if (bonding > 20) {
                 return ['嗯', '嗨', '...在', '👀'][Math.floor(Math.random() * 4)];
             } else {
-                // 新朋友，还是要友好
                 return ['你好', '嗨...', '（眨眨眼）', '嗯'][Math.floor(Math.random() * 4)];
             }
         }
 
         // ==================== 提醒 ====================
         function playNotification() {
-            // 震动
             if ('vibrate' in navigator) {
                 navigator.vibrate([200, 100, 200, 100, 200]);
             }
             
-            // 视觉提示
             creature.classList.add('timer-done');
             statusMessage.textContent = '时间到了～';
             
-            // 尝试播放声音
             try {
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const oscillator = audioContext.createOscillator();
@@ -1121,13 +1479,26 @@
         }
 
         // ==================== 保存 ====================
-        function saveState() {
+        function saveStateLocal() {
             state.lastVisit = Date.now();
             localStorage.setItem('queertime-state', JSON.stringify(state));
         }
 
         // 页面关闭前保存
-        window.addEventListener('beforeunload', saveState);
+        window.addEventListener('beforeunload', () => {
+            saveStateLocal();
+            if (currentUser) {
+                // 尝试同步（不等待）
+                navigator.sendBeacon && syncToCloud();
+            }
+        });
+
+        // 页面可见性变化时同步
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && currentUser) {
+                syncFromCloud();
+            }
+        });
     </script>
 </body>
 </html>
