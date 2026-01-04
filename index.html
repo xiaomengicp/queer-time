@@ -712,9 +712,10 @@
     </div>
     
     <div class="bottom-buttons">
-        <button class="reset-btn" id="reset-btn">重置今日</button>
+        <button class="reset-btn" id="checkin-btn">共在</button>
         <button class="reset-btn" id="log-btn">补记</button>
-        <button class="reset-btn" id="export-btn">导出数据</button>
+        <button class="reset-btn" id="reset-btn">重置今日</button>
+        <button class="reset-btn" id="export-btn">导出</button>
     </div>
     
     <!-- 补记弹窗 -->
@@ -1349,23 +1350,38 @@
             saveOngoingToCloud();
         }
 
-        // 时间的质地
+        // 时间的质地 & 共在（共用颜色选择器）
         const texturePicker = document.getElementById('texture-picker');
         let textureTimeout = null;
         let currentTextureActivity = null;
         let currentTextureMinutes = 0;
+        let pickerMode = 'texture'; // 'texture' 或 'checkin'
 
         function showTexturePicker(activity, minutes) {
+            pickerMode = 'texture';
             currentTextureActivity = activity;
             currentTextureMinutes = minutes;
             
             texturePicker.classList.add('show');
             statusMessage.textContent = '这段时间的感觉？';
             
-            // 3秒后自动消失
+            // 4秒后自动消失
             textureTimeout = setTimeout(() => {
                 hideTexturePicker();
             }, 4000);
+        }
+
+        function showCheckinPicker() {
+            if (texturePicker.classList.contains('show')) return; // 已经显示了
+            
+            pickerMode = 'checkin';
+            currentTextureActivity = null;
+            currentTextureMinutes = 0;
+            
+            texturePicker.classList.add('show');
+            statusMessage.textContent = '此刻的感觉？';
+            
+            // 共在模式不自动消失，等用户选择或点别处
         }
 
         function hideTexturePicker() {
@@ -1382,21 +1398,38 @@
             }, 300);
         }
 
+        // 共在按钮
+        const checkinBtn = document.getElementById('checkin-btn');
+        checkinBtn.addEventListener('click', () => {
+            if (isRunning) {
+                // 活动进行中也可以共在
+            }
+            showCheckinPicker();
+        });
+
         // 颜色选择
         document.querySelectorAll('.texture-color').forEach(colorBtn => {
             colorBtn.addEventListener('click', () => {
                 const color = colorBtn.dataset.color;
                 
-                // 保存质地数据
-                saveTexture(currentTextureActivity, currentTextureMinutes, color);
+                if (pickerMode === 'texture') {
+                    // 时间质地模式
+                    saveTexture(currentTextureActivity, currentTextureMinutes, color);
+                    
+                    // 根据颜色调整精力
+                    adjustEnergyByColor(color, currentTextureMinutes);
+                    
+                    statusMessage.textContent = '记下了';
+                } else {
+                    // 共在模式
+                    saveCheckin(color);
+                    statusMessage.textContent = '共在';
+                }
                 
                 // 选了颜色，连接 +2（愿意停下来感受）
                 state.bonding = Math.min(100, state.bonding + 2);
-                
-                // 根据颜色调整精力
-                adjustEnergyByColor(color, currentTextureMinutes);
-                
                 updateDisplay();
+                syncToCloud();
                 
                 // 小球吸收颜色的视觉效果
                 const colorMap = {
@@ -1414,14 +1447,24 @@
                 
                 // 隐藏选择器
                 hideTexturePicker();
-                statusMessage.textContent = '记下了';
             });
+        });
+
+        // 点击别处关闭共在选择器
+        document.addEventListener('click', (e) => {
+            if (pickerMode === 'checkin' && 
+                texturePicker.classList.contains('show') &&
+                !texturePicker.contains(e.target) &&
+                e.target !== checkinBtn) {
+                hideTexturePicker();
+            }
         });
 
         function saveTexture(activity, minutes, color) {
             // 保存到本地
             const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
             textureData.push({
+                type: 'texture',
                 date: today,
                 activity: activity,
                 minutes: minutes,
@@ -1429,7 +1472,18 @@
                 timestamp: Date.now()
             });
             localStorage.setItem('queertime-textures', JSON.stringify(textureData));
-            // TODO: 后面可以同步到云端
+        }
+
+        function saveCheckin(color) {
+            // 保存到本地
+            const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
+            textureData.push({
+                type: 'checkin',
+                date: today,
+                color: color,
+                timestamp: Date.now()
+            });
+            localStorage.setItem('queertime-textures', JSON.stringify(textureData));
         }
 
         function updateEnergyAndBonding(activity, minutes) {
