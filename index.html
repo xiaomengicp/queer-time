@@ -1541,7 +1541,12 @@
 
         updateDisplay();
         updateBalanceBars();
-        updateCreatureState();
+        // 如果有活动进行中，显示活动颜色，否则显示状态颜色
+        if (isRunning && selectedActivity) {
+            updateCreatureActivity(selectedActivity);
+        } else {
+            updateCreatureState();
+        }
         startIdleActions();
 
         // 点击宠物
