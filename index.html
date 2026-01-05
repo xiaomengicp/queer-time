@@ -624,6 +624,85 @@
         .creature.absorbing {
             animation: absorb-color 0.8s ease-out;
         }
+
+        /* 节律气泡 */
+        .rhythm-bubble {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            backdrop-filter: blur(5px);
+        }
+
+        .rhythm-bubble.show {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+            animation: bubble-float 2s ease-in-out infinite;
+        }
+
+        .rhythm-bubble:hover {
+            transform: scale(1.15);
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .rhythm-bubble:active {
+            transform: scale(0.95);
+        }
+
+        .rhythm-bubble.hungry {
+            right: 10px;
+            top: 10px;
+        }
+
+        .rhythm-bubble.thirsty {
+            right: 50px;
+            top: 10px;
+        }
+
+        .rhythm-bubble.sleepy {
+            right: 30px;
+            top: -15px;
+        }
+
+        .rhythm-bubble.urgent {
+            animation: bubble-float 2s ease-in-out infinite, bubble-pulse 1s ease-in-out infinite;
+            border-color: rgba(255, 200, 150, 0.5);
+        }
+
+        @keyframes bubble-float {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-3px) scale(1); }
+        }
+
+        @keyframes bubble-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.3); }
+            50% { box-shadow: 0 0 10px 3px rgba(255, 255, 255, 0.2); }
+        }
+
+        /* 气泡消失动画 */
+        .rhythm-bubble.satisfied {
+            animation: bubble-satisfied 0.5s ease-out forwards;
+        }
+
+        @keyframes bubble-satisfied {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.3); }
+            100% { opacity: 0; transform: scale(0); }
+        }
     </style>
 </head>
 <body>
@@ -655,6 +734,10 @@
                 <div class="eye"></div>
             </div>
         </div>
+        <!-- 节律气泡 -->
+        <div class="rhythm-bubble hungry" id="bubble-hungry" title="饿了">🍚</div>
+        <div class="rhythm-bubble thirsty" id="bubble-thirsty" title="渴了">💧</div>
+        <div class="rhythm-bubble sleepy" id="bubble-sleepy" title="困了">😴</div>
     </div>
     
     <div class="status-message" id="status-message">你来了</div>
@@ -894,7 +977,14 @@
                 aboutQuote: '饿了就吃，困了就睡。',
                 aboutSource: '—— 出自禅宗《景德传灯录》',
                 kofiText: '☕ 请我喝杯咖啡',
-                ok: '好'
+                ok: '好',
+                // 节律
+                hungry: '饿了',
+                thirsty: '渴了', 
+                sleepy: '困了',
+                ate: '吃饱了',
+                drank: '喝好了',
+                rested: '休息好了'
             },
             en: {
                 title: 'Eat when hungry, Sleep when tired',
@@ -978,7 +1068,14 @@
                 aboutQuote: 'Eat when hungry, sleep when tired.',
                 aboutSource: '—— From Zen Buddhism "Jingde Record of the Transmission of the Lamp"',
                 kofiText: '☕ Buy me a coffee',
-                ok: 'OK'
+                ok: 'OK',
+                // 节律
+                hungry: 'Hungry',
+                thirsty: 'Thirsty',
+                sleepy: 'Sleepy',
+                ate: 'Fed~',
+                drank: 'Hydrated~',
+                rested: 'Rested~'
             }
         };
 
@@ -1073,6 +1170,14 @@
             // 更新平衡条（翻译时间单位）
             updateBalanceBars();
             
+            // 更新节律气泡title
+            const bubbleH = document.getElementById('bubble-hungry');
+            const bubbleT = document.getElementById('bubble-thirsty');
+            const bubbleS = document.getElementById('bubble-sleepy');
+            if (bubbleH) bubbleH.title = t('hungry');
+            if (bubbleT) bubbleT.title = t('thirsty');
+            if (bubbleS) bubbleS.title = t('sleepy');
+            
             // 更新状态消息
             if (!isRunning) {
                 updateCreatureState();
@@ -1123,6 +1228,12 @@
         if (state.energy === undefined) state.energy = 50;
         if (state.bonding === undefined) state.bonding = 0;
         if (!state.lastVisit) state.lastVisit = Date.now();
+        
+        // 节律系统
+        if (!state.lastEat) state.lastEat = Date.now();
+        if (!state.lastDrink) state.lastDrink = Date.now();
+        if (!state.lastSleep) state.lastSleep = Date.now();
+        if (!state.rhythmIgnores) state.rhythmIgnores = { hungry: 0, thirsty: 0, sleepy: 0 };
 
         // ==================== DOM ====================
         const creature = document.getElementById('creature');
@@ -2075,6 +2186,178 @@
                 creature.classList.remove('timer-done');
             }, 2000);
         }
+
+        // ==================== 节律系统 ====================
+        const bubbleHungry = document.getElementById('bubble-hungry');
+        const bubbleThirsty = document.getElementById('bubble-thirsty');
+        const bubbleSleepy = document.getElementById('bubble-sleepy');
+        
+        // 节律配置（毫秒）
+        const RHYTHM_CONFIG = {
+            hungry: {
+                baseInterval: 4 * 60 * 60 * 1000,  // 4小时
+                minInterval: 2 * 60 * 60 * 1000,   // 最短2小时
+                hideAfter: 30 * 60 * 1000,         // 30分钟后消失
+                speedupFactor: 0.8                  // 每次忽略，间隔变为80%
+            },
+            thirsty: {
+                baseInterval: 1.5 * 60 * 60 * 1000, // 1.5小时
+                minInterval: 30 * 60 * 1000,        // 最短30分钟
+                hideAfter: 30 * 60 * 1000,
+                speedupFactor: 0.8
+            },
+            sleepy: {
+                baseInterval: 2 * 60 * 60 * 1000,   // 连续活动2小时
+                minInterval: 1 * 60 * 60 * 1000,
+                hideAfter: 30 * 60 * 1000,
+                speedupFactor: 0.8,
+                nightStart: 22,  // 晚上10点
+                nightEnd: 6      // 早上6点
+            }
+        };
+        
+        let rhythmCheckInterval = null;
+        let bubbleTimeouts = { hungry: null, thirsty: null, sleepy: null };
+        let bubbleShownAt = { hungry: null, thirsty: null, sleepy: null };
+        
+        function getEffectiveInterval(type) {
+            const config = RHYTHM_CONFIG[type];
+            const ignores = state.rhythmIgnores[type] || 0;
+            let interval = config.baseInterval * Math.pow(config.speedupFactor, ignores);
+            return Math.max(interval, config.minInterval);
+        }
+        
+        function shouldShowBubble(type) {
+            const config = RHYTHM_CONFIG[type];
+            const now = Date.now();
+            const lastTime = type === 'hungry' ? state.lastEat : 
+                            type === 'thirsty' ? state.lastDrink : state.lastSleep;
+            const elapsed = now - lastTime;
+            const interval = getEffectiveInterval(type);
+            
+            // 困的特殊逻辑：晚上或长时间活动
+            if (type === 'sleepy') {
+                const hour = new Date().getHours();
+                const isNight = hour >= config.nightStart || hour < config.nightEnd;
+                if (isNight) return true;
+            }
+            
+            return elapsed >= interval;
+        }
+        
+        function showBubble(type) {
+            const bubble = type === 'hungry' ? bubbleHungry :
+                          type === 'thirsty' ? bubbleThirsty : bubbleSleepy;
+            
+            if (bubble.classList.contains('show')) return; // 已经显示
+            
+            bubble.classList.add('show');
+            bubble.title = t(type);
+            bubbleShownAt[type] = Date.now();
+            
+            // 检查紧急程度（被忽略过）
+            if (state.rhythmIgnores[type] > 0) {
+                bubble.classList.add('urgent');
+            }
+            
+            // 设置自动消失
+            if (bubbleTimeouts[type]) clearTimeout(bubbleTimeouts[type]);
+            bubbleTimeouts[type] = setTimeout(() => {
+                hideBubble(type, true);
+            }, RHYTHM_CONFIG[type].hideAfter);
+        }
+        
+        function hideBubble(type, wasIgnored = false) {
+            const bubble = type === 'hungry' ? bubbleHungry :
+                          type === 'thirsty' ? bubbleThirsty : bubbleSleepy;
+            
+            if (wasIgnored) {
+                // 被忽略了，增加计数
+                state.rhythmIgnores[type] = (state.rhythmIgnores[type] || 0) + 1;
+                saveStateLocal();
+            }
+            
+            bubble.classList.remove('show', 'urgent');
+            bubbleShownAt[type] = null;
+            
+            if (bubbleTimeouts[type]) {
+                clearTimeout(bubbleTimeouts[type]);
+                bubbleTimeouts[type] = null;
+            }
+        }
+        
+        function satisfyNeed(type) {
+            const bubble = type === 'hungry' ? bubbleHungry :
+                          type === 'thirsty' ? bubbleThirsty : bubbleSleepy;
+            
+            // 播放满足动画
+            bubble.classList.add('satisfied');
+            
+            // 更新时间戳和重置忽略计数
+            if (type === 'hungry') state.lastEat = Date.now();
+            else if (type === 'thirsty') state.lastDrink = Date.now();
+            else state.lastSleep = Date.now();
+            
+            state.rhythmIgnores[type] = 0;
+            saveStateLocal();
+            
+            // 显示反馈消息
+            const msgKey = type === 'hungry' ? 'ate' : type === 'thirsty' ? 'drank' : 'rested';
+            statusMessage.textContent = t(msgKey);
+            
+            // 增加一点连接（照顾自己）
+            state.bonding = Math.min(100, state.bonding + 1);
+            updateDisplay();
+            
+            // 动画结束后隐藏
+            setTimeout(() => {
+                bubble.classList.remove('show', 'satisfied', 'urgent');
+                bubbleShownAt[type] = null;
+                if (bubbleTimeouts[type]) {
+                    clearTimeout(bubbleTimeouts[type]);
+                    bubbleTimeouts[type] = null;
+                }
+                // 恢复状态消息
+                setTimeout(() => {
+                    if (!isRunning) updateCreatureState();
+                }, 1000);
+            }, 500);
+            
+            syncToCloud();
+        }
+        
+        function checkRhythm() {
+            ['hungry', 'thirsty', 'sleepy'].forEach(type => {
+                if (shouldShowBubble(type) && !bubbleShownAt[type]) {
+                    showBubble(type);
+                }
+            });
+        }
+        
+        // 气泡点击事件
+        bubbleHungry.addEventListener('click', (e) => {
+            e.stopPropagation();
+            satisfyNeed('hungry');
+        });
+        
+        bubbleThirsty.addEventListener('click', (e) => {
+            e.stopPropagation();
+            satisfyNeed('thirsty');
+        });
+        
+        bubbleSleepy.addEventListener('click', (e) => {
+            e.stopPropagation();
+            satisfyNeed('sleepy');
+        });
+        
+        // 启动节律检查（每分钟检查一次）
+        function startRhythmCheck() {
+            checkRhythm(); // 立即检查一次
+            rhythmCheckInterval = setInterval(checkRhythm, 60 * 1000);
+        }
+        
+        // 初始化节律系统
+        startRhythmCheck();
 
         // ==================== 保存 ====================
         function saveStateLocal() {
