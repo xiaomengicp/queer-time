@@ -1259,6 +1259,11 @@
             isSyncing = true;
             syncStatus.textContent = '同步中...';
             syncStatus.className = 'sync-status syncing';
+            
+            const now = Date.now();
+            console.log('[同步] 开始上传到云端...');
+            console.log('[同步] 上传状态:', { energy: state.energy, bonding: state.bonding });
+            console.log('[同步] 上传记录:', todayLogs);
 
             try {
                 // 同步用户状态
@@ -1268,7 +1273,8 @@
                         user_id: currentUser.id,
                         energy: Math.round(state.energy),
                         bonding: Math.round(state.bonding),
-                        last_visit: new Date(state.lastVisit).toISOString(),
+                        last_visit: new Date(state.lastVisit || now).toISOString(),
+                        last_interaction: new Date(state.lastInteraction || now).toISOString(),
                         updated_at: new Date().toISOString()
                     }, { onConflict: 'user_id' });
 
@@ -1290,11 +1296,15 @@
                     }, { onConflict: 'user_id,log_date' });
 
                 if (logsError) throw logsError;
+                
+                // 保存本地更新时间戳
+                localStorage.setItem('queertime-logs-updated', now.toString());
 
-                syncStatus.textContent = '已同步';
+                console.log('[同步] 上传成功');
+                syncStatus.textContent = t('synced');
                 syncStatus.className = 'sync-status';
             } catch (error) {
-                console.error('同步失败:', error);
+                console.error('[同步] 上传失败:', error);
                 syncStatus.textContent = '同步失败';
                 syncStatus.className = 'sync-status error';
             } finally {
@@ -1307,6 +1317,10 @@
 
             syncStatus.textContent = '加载中...';
             syncStatus.className = 'sync-status syncing';
+            
+            console.log('[同步] 开始从云端同步...');
+            console.log('[同步] 本地状态:', { energy: state.energy, bonding: state.bonding, lastInteraction: state.lastInteraction });
+            console.log('[同步] 本地记录:', todayLogs);
 
             try {
                 // 读取用户状态
@@ -1317,10 +1331,24 @@
                     .single();
 
                 if (stateData) {
-                    state.energy = stateData.energy;
-                    state.bonding = stateData.bonding;
-                    state.lastVisit = new Date(stateData.last_visit).getTime();
-                    saveStateLocal();
+                    console.log('[同步] 云端状态:', stateData);
+                    
+                    // 比较时间戳，只用更新的数据
+                    const cloudUpdatedAt = new Date(stateData.updated_at).getTime();
+                    const localUpdatedAt = state.lastVisit || 0;
+                    
+                    if (cloudUpdatedAt > localUpdatedAt) {
+                        console.log('[同步] 云端状态更新，使用云端数据');
+                        state.energy = stateData.energy;
+                        state.bonding = stateData.bonding;
+                        state.lastVisit = new Date(stateData.last_visit).getTime();
+                        if (stateData.last_interaction) {
+                            state.lastInteraction = new Date(stateData.last_interaction).getTime();
+                        }
+                        saveStateLocal();
+                    } else {
+                        console.log('[同步] 本地状态更新，保留本地数据');
+                    }
                 }
 
                 // 读取今日记录
@@ -1332,14 +1360,25 @@
                     .single();
 
                 if (logsData) {
-                    todayLogs.work = logsData.work;
-                    todayLogs.rest = logsData.rest;
-                    todayLogs.create = logsData.create_time;
-                    todayLogs.exercise = logsData.exercise;
-                    todayLogs.social = logsData.social;
-                    todayLogs.read = logsData.read;
-                    allData[today] = todayLogs;
-                    localStorage.setItem('queertime-all', JSON.stringify(allData));
+                    console.log('[同步] 云端记录:', logsData);
+                    
+                    // 比较时间戳
+                    const cloudUpdatedAt = new Date(logsData.updated_at).getTime();
+                    const localUpdatedAt = parseInt(localStorage.getItem('queertime-logs-updated') || '0');
+                    
+                    if (cloudUpdatedAt > localUpdatedAt) {
+                        console.log('[同步] 云端记录更新，使用云端数据');
+                        todayLogs.work = logsData.work;
+                        todayLogs.rest = logsData.rest;
+                        todayLogs.create = logsData.create_time;
+                        todayLogs.exercise = logsData.exercise;
+                        todayLogs.social = logsData.social;
+                        todayLogs.read = logsData.read;
+                        allData[today] = todayLogs;
+                        localStorage.setItem('queertime-all', JSON.stringify(allData));
+                    } else {
+                        console.log('[同步] 本地记录更新，保留本地数据');
+                    }
                 }
 
                 // 检查进行中的活动
@@ -1349,8 +1388,13 @@
                     .eq('user_id', currentUser.id)
                     .single();
 
-                if (ongoingData && ongoingData.start_time) {
+                console.log('[同步] 云端进行中活动:', ongoingData);
+                console.log('[同步] 本地进行中:', isRunning ? selectedActivity : '无');
+
+                // 只有在本地没有运行中的活动时，才从云端恢复
+                if (!isRunning && ongoingData && ongoingData.start_time) {
                     const cloudStartTime = new Date(ongoingData.start_time).getTime();
+                    console.log('[同步] 从云端恢复活动:', ongoingData.activity);
                     restoreOngoingActivity(ongoingData.activity, cloudStartTime, ongoingData.target_minutes);
                     // 同步本地存储
                     localStorage.setItem('queertime-ongoing', JSON.stringify({
@@ -1376,11 +1420,16 @@
         }
 
         async function saveOngoingToCloud() {
-            if (!currentUser) return;
+            if (!currentUser) {
+                console.log('[云端保存] 未登录，跳过云端保存');
+                return;
+            }
 
+            console.log('[云端保存] 开始保存到云端, isRunning:', isRunning);
+            
             try {
                 if (isRunning) {
-                    await supabaseClient
+                    const { error } = await supabaseClient
                         .from('ongoing_activity')
                         .upsert({
                             user_id: currentUser.id,
@@ -1389,14 +1438,21 @@
                             target_minutes: targetMinutes,
                             updated_at: new Date().toISOString()
                         }, { onConflict: 'user_id' });
+                    
+                    if (error) {
+                        console.error('[云端保存] 保存失败:', error);
+                    } else {
+                        console.log('[云端保存] 保存成功');
+                    }
                 } else {
+                    console.log('[云端保存] 删除云端活动记录');
                     await supabaseClient
                         .from('ongoing_activity')
                         .delete()
                         .eq('user_id', currentUser.id);
                 }
             } catch (error) {
-                console.error('保存进行中活动失败:', error);
+                console.error('[云端保存] 异常:', error);
             }
         }
 
@@ -1404,11 +1460,22 @@
         
         // 恢复进行中活动的函数
         function restoreOngoingActivity(activity, activityStartTime, activityTargetMinutes) {
-            if (isRunning) return; // 已经在运行了
+            console.log('[恢复活动] 尝试恢复:', activity, '开始时间:', new Date(activityStartTime).toLocaleString());
+            
+            if (isRunning) {
+                console.log('[恢复活动] 已经在运行，跳过');
+                return;
+            }
             
             const elapsedMinutes = Math.floor((Date.now() - activityStartTime) / 1000 / 60);
-            if (elapsedMinutes >= 480) return; // 超过8小时不恢复
+            console.log('[恢复活动] 已过去:', elapsedMinutes, '分钟');
             
+            if (elapsedMinutes >= 480) {
+                console.log('[恢复活动] 超过8小时，不恢复');
+                return;
+            }
+            
+            console.log('[恢复活动] 正在恢复...');
             selectedActivity = activity;
             startTime = activityStartTime;
             targetMinutes = activityTargetMinutes;
@@ -1431,16 +1498,31 @@
             updateTimer();
         }
 
+        // 从本地恢复进行中的活动
+        function restoreFromLocal() {
+            const ongoing = JSON.parse(localStorage.getItem('queertime-ongoing'));
+            console.log('[恢复] 本地 ongoing:', ongoing);
+            if (ongoing && ongoing.startTime) {
+                console.log('[恢复] 从本地恢复活动:', ongoing.activity);
+                restoreOngoingActivity(ongoing.activity, ongoing.startTime, ongoing.targetMinutes);
+                return true;
+            }
+            return false;
+        }
+
+        // 先尝试从本地恢复（不管是否登录）
+        const restoredFromLocal = restoreFromLocal();
+        console.log('[初始化] 从本地恢复:', restoredFromLocal);
+
         // 检查登录状态
         supabaseClient.auth.getSession().then(({ data: { session } }) => {
             if (session) {
                 currentUser = session.user;
                 updateAuthUI();
+                // 登录用户：同步云端数据，但不覆盖正在进行的活动
                 syncFromCloud();
-            } else {
-                // 未登录，尝试从本地恢复
-                restoreFromLocal();
             }
+            // 未登录用户已经在上面 restoreFromLocal 处理了
         });
 
         // 监听登录状态变化
@@ -1454,14 +1536,6 @@
                 updateAuthUI();
             }
         });
-
-        // 从本地恢复进行中的活动
-        function restoreFromLocal() {
-            const ongoing = JSON.parse(localStorage.getItem('queertime-ongoing'));
-            if (ongoing && ongoing.startTime) {
-                restoreOngoingActivity(ongoing.activity, ongoing.startTime, ongoing.targetMinutes);
-            }
-        }
 
         // 检查多久没互动，连接值下降
         const lastInteraction = state.lastInteraction || Date.now();
@@ -1525,12 +1599,17 @@
             startTime = Date.now();
             targetMinutes = timerInput.value ? parseInt(timerInput.value) : null;
             
+            console.log('[开始活动]', selectedActivity, '开始时间:', new Date(startTime).toLocaleString());
+            
             // 保存进行中的活动
-            localStorage.setItem('queertime-ongoing', JSON.stringify({
+            const ongoingData = {
                 activity: selectedActivity,
                 startTime: startTime,
                 targetMinutes: targetMinutes
-            }));
+            };
+            localStorage.setItem('queertime-ongoing', JSON.stringify(ongoingData));
+            console.log('[开始活动] 已保存到本地:', ongoingData);
+            
             saveOngoingToCloud();
             
             startBtn.style.display = 'none';
@@ -1687,14 +1766,21 @@
             // 计算时间
             const elapsedMinutes = Math.max(1, Math.floor((Date.now() - startTime) / 1000 / 60));
             
+            console.log('[活动结束]', selectedActivity, elapsedMinutes, '分钟');
+            console.log('[活动结束] 结束前精力:', state.energy);
+            
             // 记录活动
             const finishedActivity = selectedActivity;
             todayLogs[selectedActivity] += elapsedMinutes;
             allData[today] = todayLogs;
             localStorage.setItem('queertime-all', JSON.stringify(allData));
             
+            console.log('[活动结束] 记录后 todayLogs:', JSON.stringify(todayLogs));
+            
             // 更新精力和连接
             updateEnergyAndBonding(selectedActivity, elapsedMinutes);
+            
+            console.log('[活动结束] 更新后精力:', state.energy);
             
             // 记录互动
             recordInteraction();
