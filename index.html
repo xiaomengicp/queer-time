@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>饿来食 困来眠 v5</title>
+    <title>饿来食 困来眠 v6</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
@@ -833,13 +833,25 @@
     </div>
 
     <script>
-        console.log('=== Queer Time v5 ===');
+        console.log('=== Queer Time v6 ===');
         
         // 检测是否从 bfcache 恢复
         window.addEventListener('pageshow', (event) => {
+            console.log('pageshow: persisted =', event.persisted);
             if (event.persisted) {
                 console.log('页面从 bfcache 恢复，刷新');
                 location.reload();
+            }
+        });
+        
+        window.addEventListener('pagehide', (event) => {
+            console.log('pagehide: persisted =', event.persisted);
+        });
+        
+        // 监听其他标签页对 localStorage 的修改
+        window.addEventListener('storage', (event) => {
+            if (event.key === 'queertime-ongoing') {
+                console.log('其他标签页修改了 ongoing:', event.oldValue, '->', event.newValue);
             }
         });
         
@@ -1603,7 +1615,14 @@
                 targetMinutes: targetMinutes
             };
             localStorage.setItem('queertime-ongoing', JSON.stringify(ongoingData));
-            console.log('开始活动: 保存到 localStorage =', JSON.stringify(ongoingData));
+            
+            // 立即验证保存是否成功
+            const saved = localStorage.getItem('queertime-ongoing');
+            console.log('开始活动: 保存 =', JSON.stringify(ongoingData));
+            console.log('开始活动: 验证 =', saved);
+            if (saved !== JSON.stringify(ongoingData)) {
+                console.error('开始活动: 保存失败！');
+            }
             
             saveOngoingToCloud();
             
@@ -1759,7 +1778,11 @@
             
             // 清除进行中活动的保存
             localStorage.removeItem('queertime-ongoing');
-            console.log('结束活动: 已清除 localStorage');
+            const afterRemove = localStorage.getItem('queertime-ongoing');
+            console.log('结束活动: 清除后验证 =', afterRemove);
+            if (afterRemove !== null) {
+                console.error('结束活动: 清除失败！');
+            }
             
             // 计算时间
             const elapsedMinutes = Math.max(1, Math.floor((Date.now() - startTime) / 1000 / 60));
