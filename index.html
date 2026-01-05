@@ -1299,6 +1299,7 @@
                 
                 // 保存本地更新时间戳
                 localStorage.setItem('queertime-logs-updated', now.toString());
+                localStorage.setItem('queertime-state-updated', now.toString());
 
                 console.log('[同步] 上传成功');
                 syncStatus.textContent = t('synced');
@@ -1330,12 +1331,14 @@
                     .eq('user_id', currentUser.id)
                     .single();
 
-                if (stateData) {
+            if (stateData) {
                     console.log('[同步] 云端状态:', stateData);
                     
                     // 比较时间戳，只用更新的数据
                     const cloudUpdatedAt = new Date(stateData.updated_at).getTime();
-                    const localUpdatedAt = state.lastVisit || 0;
+                    const localUpdatedAt = parseInt(localStorage.getItem('queertime-state-updated') || '0');
+                    
+                    console.log('[同步] 时间戳比较: 云端', cloudUpdatedAt, '本地', localUpdatedAt);
                     
                     if (cloudUpdatedAt > localUpdatedAt) {
                         console.log('[同步] 云端状态更新，使用云端数据');
@@ -1346,6 +1349,8 @@
                             state.lastInteraction = new Date(stateData.last_interaction).getTime();
                         }
                         saveStateLocal();
+                        // 更新本地时间戳
+                        localStorage.setItem('queertime-state-updated', cloudUpdatedAt.toString());
                     } else {
                         console.log('[同步] 本地状态更新，保留本地数据');
                     }
@@ -1420,6 +1425,10 @@
         }
 
         async function saveOngoingToCloud() {
+            // 暂时禁用云端保存，先用本地存储
+            console.log('[云端保存] 暂时禁用，使用本地存储');
+            return;
+            
             if (!currentUser) {
                 console.log('[云端保存] 未登录，跳过云端保存');
                 return;
@@ -1518,19 +1527,32 @@
         supabaseClient.auth.getSession().then(({ data: { session } }) => {
             if (session) {
                 currentUser = session.user;
+                console.log('[登录] 已登录:', currentUser.email);
                 updateAuthUI();
                 // 登录用户：同步云端数据，但不覆盖正在进行的活动
                 syncFromCloud();
+                // 如果有本地进行中的活动，保存到云端
+                if (isRunning) {
+                    console.log('[登录] 有进行中活动，保存到云端');
+                    saveOngoingToCloud();
+                }
+            } else {
+                console.log('[登录] 未登录');
             }
-            // 未登录用户已经在上面 restoreFromLocal 处理了
         });
 
         // 监听登录状态变化
         supabaseClient.auth.onAuthStateChange((event, session) => {
+            console.log('[登录状态变化]', event);
             if (event === 'SIGNED_IN' && session) {
                 currentUser = session.user;
                 updateAuthUI();
                 syncFromCloud();
+                // 如果有本地进行中的活动，保存到云端
+                if (isRunning) {
+                    console.log('[登录状态变化] 有进行中活动，保存到云端');
+                    saveOngoingToCloud();
+                }
             } else if (event === 'SIGNED_OUT') {
                 currentUser = null;
                 updateAuthUI();
