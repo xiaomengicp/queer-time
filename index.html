@@ -725,9 +725,197 @@
             50% { opacity: 1; transform: scale(1.3); }
             100% { opacity: 0; transform: scale(0); }
         }
+
+        /* 初见遮罩 */
+        .onboarding-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            opacity: 1;
+            transition: opacity 0.8s ease;
+        }
+
+        .onboarding-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .onboarding-creature {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #a8d8ea, #5e9ecf, #3d5a80);
+            box-shadow: 0 0 60px rgba(168, 216, 234, 0.4);
+            animation: float 4s ease-in-out infinite, breathe 3s ease-in-out infinite, onboarding-appear 1s ease-out;
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        @keyframes onboarding-appear {
+            0% { opacity: 0; transform: scale(0.5); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .onboarding-creature .eyes {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 16px;
+        }
+
+        .onboarding-creature .eye {
+            width: 10px;
+            height: 10px;
+            background: #1a1a2e;
+            border-radius: 50%;
+            animation: blink 4s ease-in-out infinite;
+        }
+
+        .onboarding-text {
+            color: #a8d8ea;
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 20px;
+            opacity: 0;
+            animation: text-appear 0.8s ease-out 0.5s forwards;
+            max-width: 280px;
+            line-height: 1.8;
+        }
+
+        .onboarding-subtext {
+            color: #666;
+            font-size: 0.9rem;
+            text-align: center;
+            margin-bottom: 30px;
+            opacity: 0;
+            animation: text-appear 0.8s ease-out 0.8s forwards;
+            max-width: 280px;
+            line-height: 1.6;
+        }
+
+        @keyframes text-appear {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .onboarding-continue {
+            padding: 12px 32px;
+            border: 1px solid rgba(168, 216, 234, 0.4);
+            border-radius: 25px;
+            background: transparent;
+            color: #a8d8ea;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0;
+            animation: text-appear 0.8s ease-out 1s forwards;
+        }
+
+        .onboarding-continue:hover {
+            background: rgba(168, 216, 234, 0.1);
+            border-color: #a8d8ea;
+        }
+
+        .onboarding-colors {
+            display: flex;
+            gap: 15px;
+            opacity: 0;
+            animation: text-appear 0.8s ease-out 0.8s forwards;
+        }
+
+        .onboarding-color {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .onboarding-color:hover {
+            transform: scale(1.2);
+        }
+
+        .onboarding-color.red { background: #e74c3c; }
+        .onboarding-color.orange { background: #e67e22; }
+        .onboarding-color.yellow { background: #f1c40f; }
+        .onboarding-color.green { background: #2ecc71; }
+        .onboarding-color.cyan { background: #1abc9c; }
+        .onboarding-color.blue { background: #3498db; }
+        .onboarding-color.purple { background: #9b59b6; }
+
+        .onboarding-step {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .onboarding-step.active {
+            display: flex;
+        }
     </style>
 </head>
 <body>
+    <!-- 初见遮罩 -->
+    <div class="onboarding-overlay" id="onboarding" style="display: none;">
+        <!-- 步骤1：你好 -->
+        <div class="onboarding-step active" id="onboarding-step-1">
+            <div class="onboarding-creature">
+                <div class="eyes">
+                    <div class="eye"></div>
+                    <div class="eye"></div>
+                </div>
+            </div>
+            <div class="onboarding-text" id="onboarding-hello">你好</div>
+            <button class="onboarding-continue" id="onboarding-next-1">…</button>
+        </div>
+        
+        <!-- 步骤2：介绍 -->
+        <div class="onboarding-step" id="onboarding-step-2">
+            <div class="onboarding-creature">
+                <div class="eyes">
+                    <div class="eye"></div>
+                    <div class="eye"></div>
+                </div>
+            </div>
+            <div class="onboarding-text" id="onboarding-intro">我会陪着你</div>
+            <div class="onboarding-subtext" id="onboarding-desc">不是工具，不催你<br>你做什么都好，不做也好</div>
+            <button class="onboarding-continue" id="onboarding-next-2">好</button>
+        </div>
+        
+        <!-- 步骤3：选颜色 -->
+        <div class="onboarding-step" id="onboarding-step-3">
+            <div class="onboarding-creature">
+                <div class="eyes">
+                    <div class="eye"></div>
+                    <div class="eye"></div>
+                </div>
+            </div>
+            <div class="onboarding-text" id="onboarding-color-prompt">此刻的感觉，选个颜色？</div>
+            <div class="onboarding-subtext" id="onboarding-color-desc">我会记得的</div>
+            <div class="onboarding-colors">
+                <div class="onboarding-color red" data-color="red"></div>
+                <div class="onboarding-color orange" data-color="orange"></div>
+                <div class="onboarding-color yellow" data-color="yellow"></div>
+                <div class="onboarding-color green" data-color="green"></div>
+                <div class="onboarding-color cyan" data-color="cyan"></div>
+                <div class="onboarding-color blue" data-color="blue"></div>
+                <div class="onboarding-color purple" data-color="purple"></div>
+            </div>
+        </div>
+    </div>
+
     <h1 id="app-title">饿来食 困来眠</h1>
     
     <!-- 用户状态栏 -->
@@ -1360,7 +1548,9 @@
         if (!state.lastInteraction) state.lastInteraction = Date.now();
         
         // 记忆系统
+        let isNewUser = false;
         if (!state.memory) {
+            isNewUser = true;
             state.memory = {
                 firstMeet: Date.now(),           // 第一次见面
                 firstColor: null,                // 第一次选的颜色
@@ -1369,8 +1559,13 @@
                 totalDays: 0,                    // 总共来了多少天
                 activityCounts: {},              // 各活动累计次数
                 recentActivities: [],            // 最近的活动（用于发现模式）
-                milestones: []                   // 里程碑事件
+                milestones: [],                  // 里程碑事件
+                onboardingComplete: false        // 是否完成初见
             };
+        }
+        // 兼容旧数据
+        if (state.memory.onboardingComplete === undefined) {
+            state.memory.onboardingComplete = true; // 老用户默认已完成
         }
 
         // ==================== DOM ====================
@@ -1713,9 +1908,85 @@
         // 初始化语言
         setLanguage(currentLang);
 
+        // ==================== 初见流程 ====================
+        const onboardingOverlay = document.getElementById('onboarding');
+        
+        function showOnboarding() {
+            onboardingOverlay.style.display = 'flex';
+            updateOnboardingLanguage();
+        }
+        
+        function hideOnboarding() {
+            onboardingOverlay.classList.add('fade-out');
+            setTimeout(() => {
+                onboardingOverlay.style.display = 'none';
+                state.memory.onboardingComplete = true;
+                saveStateLocal();
+            }, 800);
+        }
+        
+        function updateOnboardingLanguage() {
+            if (currentLang === 'zh') {
+                document.getElementById('onboarding-hello').textContent = '你好';
+                document.getElementById('onboarding-intro').textContent = '我会陪着你';
+                document.getElementById('onboarding-desc').innerHTML = '不是工具，不催你<br>你做什么都好，不做也好';
+                document.getElementById('onboarding-color-prompt').textContent = '此刻的感觉，选个颜色？';
+                document.getElementById('onboarding-color-desc').textContent = '我会记得的';
+                document.getElementById('onboarding-next-2').textContent = '好';
+            } else {
+                document.getElementById('onboarding-hello').textContent = 'Hello';
+                document.getElementById('onboarding-intro').textContent = 'I\'ll be here with you';
+                document.getElementById('onboarding-desc').innerHTML = 'Not a tool, no pressure<br>Whatever you do is fine, doing nothing is fine too';
+                document.getElementById('onboarding-color-prompt').textContent = 'How do you feel now? Pick a color?';
+                document.getElementById('onboarding-color-desc').textContent = 'I\'ll remember';
+                document.getElementById('onboarding-next-2').textContent = 'OK';
+            }
+        }
+        
+        // 步骤切换
+        document.getElementById('onboarding-next-1').addEventListener('click', () => {
+            document.getElementById('onboarding-step-1').classList.remove('active');
+            document.getElementById('onboarding-step-2').classList.add('active');
+        });
+        
+        document.getElementById('onboarding-next-2').addEventListener('click', () => {
+            document.getElementById('onboarding-step-2').classList.remove('active');
+            document.getElementById('onboarding-step-3').classList.add('active');
+        });
+        
+        // 初见颜色选择
+        document.querySelectorAll('.onboarding-color').forEach(colorBtn => {
+            colorBtn.addEventListener('click', () => {
+                const color = colorBtn.dataset.color;
+                
+                // 记录第一次选的颜色
+                state.memory.firstColor = color;
+                saveStateLocal();
+                
+                // 保存到 textures
+                const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
+                textureData.push({
+                    type: 'firstMeet',
+                    date: today,
+                    color: color,
+                    timestamp: Date.now()
+                });
+                localStorage.setItem('queertime-textures', JSON.stringify(textureData));
+                
+                // 关闭初见
+                hideOnboarding();
+            });
+        });
+        
+        // 检测是否需要显示初见
+        if (!state.memory.onboardingComplete) {
+            showOnboarding();
+        }
+
         // 语言切换按钮
         document.getElementById('lang-btn').addEventListener('click', () => {
             setLanguage(currentLang === 'zh' ? 'en' : 'zh');
+            updateOnboardingLanguage();
         });
 
         updateDisplay();
