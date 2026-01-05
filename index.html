@@ -1358,6 +1358,20 @@
         
         // 互动追踪
         if (!state.lastInteraction) state.lastInteraction = Date.now();
+        
+        // 记忆系统
+        if (!state.memory) {
+            state.memory = {
+                firstMeet: Date.now(),           // 第一次见面
+                firstColor: null,                // 第一次选的颜色
+                consecutiveDays: 0,              // 连续来的天数
+                lastVisitDate: null,             // 上次来的日期（用于计算连续天数）
+                totalDays: 0,                    // 总共来了多少天
+                activityCounts: {},              // 各活动累计次数
+                recentActivities: [],            // 最近的活动（用于发现模式）
+                milestones: []                   // 里程碑事件
+            };
+        }
 
         // ==================== DOM ====================
         const creature = document.getElementById('creature');
@@ -2088,6 +2102,9 @@
             // 记录互动
             recordInteraction();
             
+            // 记录到记忆
+            recordActivityToMemory(finishedActivity);
+            
             // 重置UI
             isRunning = false;
             startTime = null;
@@ -2259,6 +2276,9 @@
                 
                 updateDisplay();
                 syncToCloud();
+                
+                // 记录第一次选的颜色
+                recordFirstColor(color);
                 
                 // 小球吸收颜色的视觉效果
                 const colorMap = {
@@ -2483,7 +2503,171 @@
         }
 
         // ==================== 消息 ====================
+        // ==================== 记忆系统 ====================
+        function updateMemory() {
+            const mem = state.memory;
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            // 更新连续天数
+            if (mem.lastVisitDate) {
+                const lastDate = new Date(mem.lastVisitDate);
+                const today = new Date(todayStr);
+                const diffDays = Math.floor((today - lastDate) / (24 * 60 * 60 * 1000));
+                
+                if (diffDays === 1) {
+                    // 连续来
+                    mem.consecutiveDays++;
+                } else if (diffDays > 1) {
+                    // 断了
+                    mem.consecutiveDays = 1;
+                }
+                // diffDays === 0 表示今天已经来过，不变
+            } else {
+                mem.consecutiveDays = 1;
+            }
+            
+            if (mem.lastVisitDate !== todayStr) {
+                mem.totalDays++;
+                mem.lastVisitDate = todayStr;
+            }
+            
+            saveStateLocal();
+        }
+        
+        function recordActivityToMemory(activity) {
+            const mem = state.memory;
+            
+            // 累计次数
+            mem.activityCounts[activity] = (mem.activityCounts[activity] || 0) + 1;
+            
+            // 记录最近活动（保留最近20条）
+            mem.recentActivities.push({
+                activity: activity,
+                date: new Date().toISOString()
+            });
+            if (mem.recentActivities.length > 20) {
+                mem.recentActivities.shift();
+            }
+            
+            saveStateLocal();
+        }
+        
+        function recordFirstColor(color) {
+            if (!state.memory.firstColor) {
+                state.memory.firstColor = color;
+                saveStateLocal();
+            }
+        }
+        
+        function getDaysSinceFirstMeet() {
+            const firstMeet = state.memory.firstMeet;
+            const now = Date.now();
+            return Math.floor((now - firstMeet) / (24 * 60 * 60 * 1000));
+        }
+        
+        function getMostFrequentActivity() {
+            const counts = state.memory.activityCounts;
+            if (Object.keys(counts).length === 0) return null;
+            return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+        }
+        
+        function getDaysSinceActivity(activity) {
+            const recent = state.memory.recentActivities;
+            for (let i = recent.length - 1; i >= 0; i--) {
+                if (recent[i].activity === activity) {
+                    const then = new Date(recent[i].date);
+                    const now = new Date();
+                    return Math.floor((now - then) / (24 * 60 * 60 * 1000));
+                }
+            }
+            return null; // 从没做过
+        }
+        
+        // 初始化时更新记忆
+        updateMemory();
+        
+        // ==================== 个人化消息 ====================
+        function getMemoryMessage() {
+            const mem = state.memory;
+            const messages = [];
+            
+            // 连续天数
+            if (mem.consecutiveDays >= 7) {
+                messages.push(currentLang === 'zh' ? `连续第${mem.consecutiveDays}天了` : `Day ${mem.consecutiveDays} in a row`);
+            } else if (mem.consecutiveDays >= 3) {
+                messages.push(currentLang === 'zh' ? '你一直都在' : 'You keep coming back');
+            }
+            
+            // 认识多久
+            const daysTogether = getDaysSinceFirstMeet();
+            if (daysTogether >= 30 && daysTogether < 32) {
+                messages.push(currentLang === 'zh' ? '我们认识一个月了' : 'We\'ve known each other for a month');
+            } else if (daysTogether >= 7 && daysTogether < 9) {
+                messages.push(currentLang === 'zh' ? '认识一周了' : 'One week together');
+            }
+            
+            // 最常做的活动
+            const favorite = getMostFrequentActivity();
+            if (favorite && mem.activityCounts[favorite] >= 5) {
+                const activityNames = {
+                    zh: { work: '工作', rest: '休息', create: '创造', exercise: '运动', social: '社交', read: '阅读' },
+                    en: { work: 'work', rest: 'rest', create: 'create', exercise: 'exercise', social: 'socialize', read: 'read' }
+                };
+                const name = activityNames[currentLang][favorite];
+                if (Math.random() < 0.3) {
+                    messages.push(currentLang === 'zh' ? `你真的很爱${name}` : `You really love to ${name}`);
+                }
+            }
+            
+            // 好久没做某事
+            const activities = ['exercise', 'create', 'social', 'read'];
+            for (const act of activities) {
+                const days = getDaysSinceActivity(act);
+                if (days !== null && days >= 5) {
+                    const activityNames = {
+                        zh: { exercise: '运动', create: '创造', social: '见人', read: '阅读' },
+                        en: { exercise: 'exercise', create: 'create', social: 'see people', read: 'read' }
+                    };
+                    const name = activityNames[currentLang][act];
+                    if (name) {
+                        messages.push(currentLang === 'zh' ? `好久没${name}了` : `Haven't ${name}d in a while`);
+                        break; // 只说一个
+                    }
+                }
+            }
+            
+            // 第一次见面的颜色
+            if (mem.firstColor && Math.random() < 0.1) {
+                const colorNames = {
+                    zh: { red: '红色', orange: '橙色', yellow: '黄色', green: '绿色', cyan: '青色', blue: '蓝色', purple: '紫色' },
+                    en: { red: 'red', orange: 'orange', yellow: 'yellow', green: 'green', cyan: 'cyan', blue: 'blue', purple: 'purple' }
+                };
+                const colorName = colorNames[currentLang][mem.firstColor];
+                if (colorName) {
+                    messages.push(currentLang === 'zh' ? `还记得第一次是${colorName}` : `I remember the first time was ${colorName}`);
+                }
+            }
+            
+            return messages.length > 0 ? messages[Math.floor(Math.random() * messages.length)] : null;
+        }
+        
         function getActivityMessage(activity) {
+            // 有时候说个人化的
+            if (Math.random() < 0.3) {
+                const counts = state.memory.activityCounts;
+                const count = counts[activity] || 0;
+                
+                if (count >= 10) {
+                    const msgs = {
+                        zh: { work: '又来工作了', rest: '又来休息了，好', create: '又来创造', exercise: '又动起来了', social: '又去连接了', read: '又来读书' },
+                        en: { work: 'Working again', rest: 'Resting again, good', create: 'Creating again', exercise: 'Moving again', social: 'Connecting again', read: 'Reading again' }
+                    };
+                    if (msgs[currentLang][activity]) {
+                        return msgs[currentLang][activity];
+                    }
+                }
+            }
+            
             const keys = {
                 work: 'msgWork',
                 rest: 'msgRest',
@@ -2496,11 +2680,21 @@
         }
 
         function getHappyMessage() {
+            // 30% 概率说个人化的
+            if (Math.random() < 0.3) {
+                const memMsg = getMemoryMessage();
+                if (memMsg) return memMsg;
+            }
             const messages = t('happyMsgs');
             return messages[Math.floor(Math.random() * messages.length)];
         }
 
         function getCuriousMessage() {
+            // 30% 概率说个人化的
+            if (Math.random() < 0.3) {
+                const memMsg = getMemoryMessage();
+                if (memMsg) return memMsg;
+            }
             const messages = t('curiousMsgs');
             return messages[Math.floor(Math.random() * messages.length)];
         }
@@ -2517,6 +2711,12 @@
 
         function getClickResponse() {
             const bonding = state.bonding;
+            
+            // 高连接时有时候说个人化的
+            if (bonding > 50 && Math.random() < 0.2) {
+                const memMsg = getMemoryMessage();
+                if (memMsg) return memMsg;
+            }
             
             if (bonding > 50) {
                 const msgs = t('clickHighBond');
