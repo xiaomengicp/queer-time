@@ -342,13 +342,35 @@
             font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin-top: 10px;
-            margin-bottom: 5px;
         }
 
         .checkin-btn:hover {
             background: rgba(168, 216, 234, 0.1);
             border-color: #a8d8ea;
+        }
+
+        .presence-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .stuck-btn {
+            padding: 8px 24px;
+            border: 1px solid rgba(99, 110, 114, 0.4);
+            border-radius: 20px;
+            background: transparent;
+            color: #636e72;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .stuck-btn:hover {
+            background: rgba(99, 110, 114, 0.1);
+            border-color: #636e72;
+            color: #888;
         }
 
         .balance-container {
@@ -777,7 +799,10 @@
         <button class="control-btn stop-btn" id="stop-btn" style="display: none;">结束</button>
     </div>
     
-    <button class="checkin-btn" id="checkin-btn">共在</button>
+    <div class="presence-buttons">
+        <button class="checkin-btn" id="checkin-btn">共在</button>
+        <button class="stuck-btn" id="stuck-btn">什么都做不了</button>
+    </div>
     
     <div class="balance-container">
         <div class="balance-title" id="balance-title">今日平衡</div>
@@ -931,6 +956,8 @@
                 checkinPrompt: '此刻的感觉？',
                 noted: '记下了',
                 present: '共在',
+                stuck: '什么都做不了',
+                stuckMsgs: ['我在', '没关系', '就待着', '陪着你', '不用做什么'],
                 logged: '已补记',
                 finishFirst: '先结束当前活动',
                 confirmReset: '确定要重置今日记录吗？',
@@ -1022,6 +1049,8 @@
                 checkinPrompt: 'How do you feel now?',
                 noted: 'Noted',
                 present: 'Present',
+                stuck: 'Can\'t do anything',
+                stuckMsgs: ['I\'m here', 'It\'s okay', 'Just be', 'With you', 'No need to do anything'],
                 logged: 'Logged',
                 finishFirst: 'Finish current activity first',
                 confirmReset: 'Reset today\'s record?',
@@ -1107,6 +1136,7 @@
             document.getElementById('start-btn').textContent = t('start');
             document.getElementById('stop-btn').textContent = t('end');
             document.getElementById('checkin-btn').textContent = t('bePresent');
+            document.getElementById('stuck-btn').textContent = t('stuck');
             document.getElementById('balance-title').textContent = t('todayBalance');
             document.getElementById('log-btn').textContent = t('log');
             document.getElementById('about-btn').textContent = t('about');
@@ -1234,6 +1264,9 @@
         if (!state.lastDrink) state.lastDrink = Date.now();
         if (!state.lastSleep) state.lastSleep = Date.now();
         if (!state.rhythmIgnores) state.rhythmIgnores = { hungry: 0, thirsty: 0, sleepy: 0 };
+        
+        // 互动追踪
+        if (!state.lastInteraction) state.lastInteraction = Date.now();
 
         // ==================== DOM ====================
         const creature = document.getElementById('creature');
@@ -1556,15 +1589,21 @@
             }
         }
 
-        // 检查离开了多久，连接值下降
-        const timeSinceLastVisit = (Date.now() - state.lastVisit) / 1000 / 60 / 60; // 小时
-        if (timeSinceLastVisit > 6) {
-            // 超过6小时没来，连接下降
-            const decrease = Math.min(state.bonding, Math.floor(timeSinceLastVisit * 2));
+        // 检查多久没互动，连接值下降
+        const hoursSinceInteraction = (Date.now() - state.lastInteraction) / 1000 / 60 / 60;
+        if (hoursSinceInteraction > 6) {
+            // 超过6小时没互动，连接下降（每小时-3%）
+            const decrease = Math.min(state.bonding, Math.floor(hoursSinceInteraction * 3));
             state.bonding = Math.max(0, state.bonding - decrease);
         }
         state.lastVisit = Date.now();
         saveStateLocal();
+
+        // 更新互动时间的函数
+        function recordInteraction() {
+            state.lastInteraction = Date.now();
+            saveStateLocal();
+        }
 
         // 初始化语言
         setLanguage(currentLang);
@@ -1654,9 +1693,11 @@
         });
 
         exportBtn.addEventListener('click', () => {
+            const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
             const exportData = {
                 history: allData,
                 state: state,
+                textures: textureData,
                 exportedAt: new Date().toISOString()
             };
             const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -1705,6 +1746,9 @@
             
             // 补记也更新精力（但不加连接）
             updateEnergyOnly(activity, minutes);
+            
+            // 记录互动
+            recordInteraction();
             
             // 更新显示
             updateBalanceBars();
@@ -1782,6 +1826,9 @@
             
             // 更新精力和连接
             updateEnergyAndBonding(selectedActivity, elapsedMinutes);
+            
+            // 记录互动
+            recordInteraction();
             
             // 重置UI
             isRunning = false;
@@ -1866,6 +1913,59 @@
             showCheckinPicker();
         });
 
+        // 什么都做不了按钮
+        const stuckBtn = document.getElementById('stuck-btn');
+        stuckBtn.addEventListener('click', () => {
+            if (isRunning) {
+                statusMessage.textContent = t('finishFirst');
+                return;
+            }
+            
+            // 小球变成疲惫状态
+            creature.className = 'creature tired';
+            
+            // 显示温柔的消息
+            const stuckMsgs = t('stuckMsgs');
+            statusMessage.textContent = stuckMsgs[Math.floor(Math.random() * stuckMsgs.length)];
+            
+            // 显示颜色选择器
+            pickerMode = 'stuck';
+            texturePicker.classList.add('show');
+            
+            // 连接+2（你承认了自己的状态）
+            state.bonding = Math.min(100, state.bonding + 2);
+            updateDisplay();
+            
+            // 记录互动
+            recordInteraction();
+            
+            // 保存这个状态
+            saveStuck();
+            syncToCloud();
+        });
+
+        function saveStuck() {
+            const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
+            textureData.push({
+                type: 'stuck',
+                date: today,
+                timestamp: Date.now()
+            });
+            localStorage.setItem('queertime-textures', JSON.stringify(textureData));
+        }
+
+        function updateStuckColor(color) {
+            const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
+            // 找到最后一条 stuck 记录并更新颜色
+            for (let i = textureData.length - 1; i >= 0; i--) {
+                if (textureData[i].type === 'stuck' && !textureData[i].color) {
+                    textureData[i].color = color;
+                    break;
+                }
+            }
+            localStorage.setItem('queertime-textures', JSON.stringify(textureData));
+        }
+
         // 颜色选择
         document.querySelectorAll('.texture-color').forEach(colorBtn => {
             colorBtn.addEventListener('click', () => {
@@ -1879,14 +1979,26 @@
                     adjustEnergyByColor(color, currentTextureMinutes);
                     
                     statusMessage.textContent = t('noted');
-                } else {
+                    
+                    // 选了颜色，连接 +2
+                    state.bonding = Math.min(100, state.bonding + 2);
+                } else if (pickerMode === 'checkin') {
                     // 共在模式
                     saveCheckin(color);
                     statusMessage.textContent = t('present');
+                    
+                    // 选了颜色，连接 +2
+                    state.bonding = Math.min(100, state.bonding + 2);
+                    
+                    // 记录互动
+                    recordInteraction();
+                } else if (pickerMode === 'stuck') {
+                    // 什么都做不了模式 - 更新最后一条 stuck 记录的颜色
+                    updateStuckColor(color);
+                    statusMessage.textContent = t('noted');
+                    // stuck 点击时已经加过连接了，这里不重复加
                 }
                 
-                // 选了颜色，连接 +2（愿意停下来感受）
-                state.bonding = Math.min(100, state.bonding + 2);
                 updateDisplay();
                 syncToCloud();
                 
@@ -1909,12 +2021,13 @@
             });
         });
 
-        // 点击别处关闭共在选择器
+        // 点击别处关闭选择器（共在和什么都做不了）
         document.addEventListener('click', (e) => {
-            if (pickerMode === 'checkin' && 
+            if ((pickerMode === 'checkin' || pickerMode === 'stuck') && 
                 texturePicker.classList.contains('show') &&
                 !texturePicker.contains(e.target) &&
-                e.target !== checkinBtn) {
+                e.target !== checkinBtn &&
+                e.target !== stuckBtn) {
                 hideTexturePicker();
             }
         });
@@ -1964,11 +2077,11 @@
         // 只更新精力，不更新连接（用于补记）
         function updateEnergyOnly(activity, minutes) {
             if (activity === 'rest') {
-                // 休息恢复精力
-                state.energy = Math.min(100, state.energy + Math.floor(minutes / 2));
+                // 休息恢复精力（每5分钟+1）
+                state.energy = Math.min(100, state.energy + Math.floor(minutes / 5));
             } else if (activity === 'exercise') {
-                // 运动：轻微消耗但也有恢复效果，净效果接近持平或轻微恢复
-                state.energy = Math.min(100, state.energy + Math.floor(minutes / 6));
+                // 运动：轻微恢复（每8分钟+1）
+                state.energy = Math.min(100, state.energy + Math.floor(minutes / 8));
             } else {
                 // 其他活动都消耗精力
                 const types = ['work', 'rest', 'create', 'exercise', 'social', 'read'];
