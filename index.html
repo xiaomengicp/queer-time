@@ -841,6 +841,7 @@
     </div>
     
     <div class="bottom-buttons">
+        <button class="reset-btn" id="review-btn">回看</button>
         <button class="reset-btn" id="log-btn">补记</button>
         <button class="reset-btn" id="about-btn">关于</button>
         <button class="reset-btn" id="reset-btn">重置今日</button>
@@ -915,6 +916,36 @@
         </div>
     </div>
 
+    <!-- 回看弹窗 -->
+    <div class="modal-overlay" id="review-modal" style="display: none;">
+        <div class="modal" style="max-width: 340px;">
+            <div class="modal-title" id="review-title">这一周</div>
+            
+            <!-- 颜色回看 -->
+            <div style="margin-bottom: 20px;">
+                <div style="color: #888; font-size: 0.8rem; margin-bottom: 10px;" id="review-colors-label">时间的颜色</div>
+                <div id="review-colors" style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;"></div>
+                <div id="review-colors-summary" style="color: #a8d8ea; font-size: 0.85rem; margin-top: 10px; text-align: center;"></div>
+            </div>
+            
+            <!-- 活动回看 -->
+            <div style="margin-bottom: 20px;">
+                <div style="color: #888; font-size: 0.8rem; margin-bottom: 10px;" id="review-activities-label">这些天</div>
+                <div id="review-activities" style="color: #a8d8ea; font-size: 0.9rem; line-height: 1.8; text-align: center;"></div>
+            </div>
+            
+            <!-- stuck 回看 -->
+            <div id="review-stuck-section" style="margin-bottom: 20px; display: none;">
+                <div style="color: #888; font-size: 0.8rem; margin-bottom: 8px;" id="review-stuck-label">也有不容易的时候</div>
+                <div id="review-stuck" style="color: #636e72; font-size: 0.85rem; text-align: center;"></div>
+            </div>
+            
+            <div class="modal-buttons" style="margin-top: 16px;">
+                <button class="modal-btn confirm" id="review-close" style="flex: 1;">好</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ==================== 多语言 ====================
         let currentLang = localStorage.getItem('queertime-lang') || 'zh';
@@ -963,6 +994,32 @@
                 confirmReset: '确定要重置今日记录吗？',
                 enterValidTime: '请输入有效的时长',
                 timeUp: '时间到了～',
+                // 回看
+                review: '回看',
+                reviewTitle: '这一周',
+                reviewColorsLabel: '时间的颜色',
+                reviewActivitiesLabel: '这些天',
+                reviewStuckLabel: '也有不容易的时候',
+                reviewNoData: '还没有记录',
+                reviewMostly: '大多是',
+                reviewColorNames: {
+                    red: '红色',
+                    orange: '橙色',
+                    yellow: '黄色',
+                    green: '绿色',
+                    cyan: '青色',
+                    blue: '蓝色',
+                    purple: '紫色'
+                },
+                reviewActivityPhrases: {
+                    work: ['工作了一些', '在工作', '忙碌着'],
+                    rest: ['休息了不少', '有在休息', '休息着'],
+                    create: ['创造了一些', '有在创造', '创造着'],
+                    exercise: ['动了动', '有在运动', '运动着'],
+                    social: ['见了人', '有社交', '连接着'],
+                    read: ['读了书', '有在阅读', '阅读着']
+                },
+                reviewStuckTimes: ['有一次什么都做不了', '有几次什么都做不了', '有好几次什么都做不了'],
                 // 活动消息
                 msgWork: '专注中...我陪着你',
                 msgRest: '好好休息，这很重要',
@@ -1056,6 +1113,32 @@
                 confirmReset: 'Reset today\'s record?',
                 enterValidTime: 'Please enter a valid duration',
                 timeUp: 'Time\'s up~',
+                // 回看
+                review: 'Review',
+                reviewTitle: 'This Week',
+                reviewColorsLabel: 'Colors of time',
+                reviewActivitiesLabel: 'These days',
+                reviewStuckLabel: 'Some hard moments',
+                reviewNoData: 'No records yet',
+                reviewMostly: 'Mostly',
+                reviewColorNames: {
+                    red: 'red',
+                    orange: 'orange',
+                    yellow: 'yellow',
+                    green: 'green',
+                    cyan: 'cyan',
+                    blue: 'blue',
+                    purple: 'purple'
+                },
+                reviewActivityPhrases: {
+                    work: ['Worked some', 'Been working', 'Busy'],
+                    rest: ['Rested well', 'Some rest', 'Resting'],
+                    create: ['Created things', 'Been creating', 'Creating'],
+                    exercise: ['Moved around', 'Some exercise', 'Moving'],
+                    social: ['Saw people', 'Been social', 'Connecting'],
+                    read: ['Read some', 'Been reading', 'Reading']
+                },
+                reviewStuckTimes: ['One hard moment', 'A few hard moments', 'Several hard moments'],
                 // 活动消息
                 msgWork: 'Focusing... I\'m with you',
                 msgRest: 'Rest well, it matters',
@@ -1138,6 +1221,7 @@
             document.getElementById('checkin-btn').textContent = t('bePresent');
             document.getElementById('stuck-btn').textContent = t('stuck');
             document.getElementById('balance-title').textContent = t('todayBalance');
+            document.getElementById('review-btn').textContent = t('review');
             document.getElementById('log-btn').textContent = t('log');
             document.getElementById('about-btn').textContent = t('about');
             document.getElementById('reset-btn').textContent = t('resetToday');
@@ -1190,6 +1274,13 @@
             document.getElementById('about-source').textContent = t('aboutSource');
             document.getElementById('kofi-link').textContent = t('kofiText');
             document.getElementById('about-close').textContent = t('ok');
+            
+            // 回看弹窗
+            document.getElementById('review-title').textContent = t('reviewTitle');
+            document.getElementById('review-colors-label').textContent = t('reviewColorsLabel');
+            document.getElementById('review-activities-label').textContent = t('reviewActivitiesLabel');
+            document.getElementById('review-stuck-label').textContent = t('reviewStuckLabel');
+            document.getElementById('review-close').textContent = t('ok');
             
             // 语言按钮
             document.getElementById('lang-btn').textContent = lang === 'zh' ? 'EN' : '中';
@@ -1792,6 +1883,173 @@
             }
         });
 
+        // ==================== 回看弹窗 ====================
+        const reviewModal = document.getElementById('review-modal');
+        const reviewBtn = document.getElementById('review-btn');
+        const reviewClose = document.getElementById('review-close');
+
+        reviewBtn.addEventListener('click', () => {
+            renderReview();
+            reviewModal.style.display = 'flex';
+        });
+
+        reviewClose.addEventListener('click', () => {
+            reviewModal.style.display = 'none';
+        });
+
+        reviewModal.addEventListener('click', (e) => {
+            if (e.target === reviewModal) {
+                reviewModal.style.display = 'none';
+            }
+        });
+
+        function renderReview() {
+            const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
+            const now = Date.now();
+            const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+            
+            // 过滤最近7天的数据
+            const weekData = textureData.filter(d => d.timestamp >= weekAgo);
+            
+            // 渲染颜色点
+            const colorsContainer = document.getElementById('review-colors');
+            const colorsSummary = document.getElementById('review-colors-summary');
+            
+            const colorRecords = weekData.filter(d => d.color);
+            if (colorRecords.length === 0) {
+                colorsContainer.innerHTML = `<span style="color: #666; font-size: 0.8rem;">${t('reviewNoData')}</span>`;
+                colorsSummary.textContent = '';
+            } else {
+                // 按天分组显示颜色点
+                const colorMap = {
+                    red: '#e74c3c',
+                    orange: '#e67e22',
+                    yellow: '#f1c40f',
+                    green: '#2ecc71',
+                    cyan: '#1abc9c',
+                    blue: '#3498db',
+                    purple: '#9b59b6'
+                };
+                
+                let dotsHtml = colorRecords.map(d => 
+                    `<div style="width: 12px; height: 12px; border-radius: 50%; background: ${colorMap[d.color] || '#888'};"></div>`
+                ).join('');
+                colorsContainer.innerHTML = dotsHtml;
+                
+                // 找出最常见的颜色
+                const colorCounts = {};
+                colorRecords.forEach(d => {
+                    colorCounts[d.color] = (colorCounts[d.color] || 0) + 1;
+                });
+                const dominantColor = Object.keys(colorCounts).reduce((a, b) => 
+                    colorCounts[a] > colorCounts[b] ? a : b, Object.keys(colorCounts)[0]
+                );
+                
+                const colorNames = t('reviewColorNames');
+                colorsSummary.textContent = `${t('reviewMostly')} ${colorNames[dominantColor] || dominantColor}`;
+            }
+            
+            // 渲染活动描述
+            const activitiesContainer = document.getElementById('review-activities');
+            
+            // 收集这周的活动数据
+            const weekActivityTotals = { work: 0, rest: 0, create: 0, exercise: 0, social: 0, read: 0 };
+            const dates = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(now - i * 24 * 60 * 60 * 1000);
+                dates.push(d.toISOString().split('T')[0]);
+            }
+            dates.forEach(date => {
+                if (allData[date]) {
+                    Object.keys(weekActivityTotals).forEach(type => {
+                        weekActivityTotals[type] += allData[date][type] || 0;
+                    });
+                }
+            });
+            
+            // 找出有记录的活动，生成温柔的描述
+            const phrases = t('reviewActivityPhrases');
+            const activeActivities = Object.keys(weekActivityTotals)
+                .filter(type => weekActivityTotals[type] > 0)
+                .sort((a, b) => weekActivityTotals[b] - weekActivityTotals[a])
+                .slice(0, 3); // 最多显示3个
+            
+            if (activeActivities.length === 0) {
+                activitiesContainer.innerHTML = `<span style="color: #666;">${t('reviewNoData')}</span>`;
+            } else {
+                const descriptions = activeActivities.map(type => {
+                    const phraseList = phrases[type];
+                    const total = weekActivityTotals[type];
+                    // 根据时间长短选择不同的描述
+                    const idx = total > 120 ? 0 : (total > 30 ? 1 : 2);
+                    return phraseList[idx];
+                });
+                activitiesContainer.textContent = descriptions.join('，');
+            }
+            
+            // 渲染 stuck 记录
+            const stuckSection = document.getElementById('review-stuck-section');
+            const stuckContainer = document.getElementById('review-stuck');
+            const stuckRecords = weekData.filter(d => d.type === 'stuck');
+            
+            if (stuckRecords.length > 0) {
+                stuckSection.style.display = 'block';
+                const stuckPhrases = t('reviewStuckTimes');
+                const idx = stuckRecords.length === 1 ? 0 : (stuckRecords.length <= 3 ? 1 : 2);
+                stuckContainer.textContent = stuckPhrases[idx];
+            } else {
+                stuckSection.style.display = 'none';
+            }
+        }
+
+        // ==================== 小球颜色影响 ====================
+        function getDominantColorFromWeek() {
+            const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
+            const now = Date.now();
+            const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+            
+            const weekColors = textureData
+                .filter(d => d.timestamp >= weekAgo && d.color)
+                .map(d => d.color);
+            
+            if (weekColors.length === 0) return null;
+            
+            const colorCounts = {};
+            weekColors.forEach(c => {
+                colorCounts[c] = (colorCounts[c] || 0) + 1;
+            });
+            
+            return Object.keys(colorCounts).reduce((a, b) => 
+                colorCounts[a] > colorCounts[b] ? a : b
+            );
+        }
+
+        function applyCreatureColorInfluence() {
+            const dominantColor = getDominantColorFromWeek();
+            if (!dominantColor) return;
+            
+            const colorInfluence = {
+                red: { hue: '0deg', saturation: '1.1' },
+                orange: { hue: '30deg', saturation: '1.1' },
+                yellow: { hue: '50deg', saturation: '1.05' },
+                green: { hue: '120deg', saturation: '1.05' },
+                cyan: { hue: '180deg', saturation: '1.05' },
+                blue: { hue: '210deg', saturation: '1.1' },
+                purple: { hue: '280deg', saturation: '1.1' }
+            };
+            
+            const influence = colorInfluence[dominantColor];
+            if (influence && !isRunning) {
+                // 给小球添加一点色调影响（只在默认状态时）
+                creature.style.filter = `hue-rotate(${influence.hue}) saturate(${influence.saturation})`;
+            }
+        }
+
+        // 清除颜色影响（活动时）
+        function clearCreatureColorInfluence() {
+            creature.style.filter = '';
+        }
+
         // ==================== 核心函数 ====================
         
         function updateTimer() {
@@ -2142,10 +2400,15 @@
                 creature.classList.add('tired');
                 statusMessage.textContent = getUpsetMessage();
             }
+            
+            // 应用颜色影响
+            applyCreatureColorInfluence();
         }
 
         function updateCreatureActivity(activity) {
             creature.className = 'creature';
+            // 活动时清除颜色影响
+            clearCreatureColorInfluence();
             switch(activity) {
                 case 'work': creature.classList.add('working'); break;
                 case 'rest': creature.classList.add('resting'); break;
