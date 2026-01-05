@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>饿来食 困来眠</title>
+    <title>饿来食 困来眠 v4</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
@@ -833,6 +833,8 @@
     </div>
 
     <script>
+        console.log('=== Queer Time v4 ===');
+        
         // ==================== 多语言 ====================
         let currentLang = localStorage.getItem('queertime-lang') || 'zh';
         
@@ -1457,19 +1459,22 @@
 
         // 从本地恢复进行中的活动
         function restoreFromLocal() {
-            const ongoing = JSON.parse(localStorage.getItem('queertime-ongoing'));
+            const ongoingStr = localStorage.getItem('queertime-ongoing');
+            console.log('restoreFromLocal: localStorage =', ongoingStr);
+            const ongoing = JSON.parse(ongoingStr);
             
             if (ongoing && ongoing.startTime) {
-                
+                console.log('restoreFromLocal: 恢复活动 =', ongoing.activity);
                 restoreOngoingActivity(ongoing.activity, ongoing.startTime, ongoing.targetMinutes);
                 return true;
             }
+            console.log('restoreFromLocal: 无活动');
             return false;
         }
 
         // 先尝试从本地恢复（不管是否登录）
         const restoredFromLocal = restoreFromLocal();
-        
+        console.log('初始化完成: isRunning =', isRunning, 'selectedActivity =', selectedActivity);
 
         // 检查登录状态
         let hasSyncedOnLoad = false;
@@ -1590,7 +1595,7 @@
                 targetMinutes: targetMinutes
             };
             localStorage.setItem('queertime-ongoing', JSON.stringify(ongoingData));
-            
+            console.log('开始活动: 保存到 localStorage =', JSON.stringify(ongoingData));
             
             saveOngoingToCloud();
             
@@ -1740,10 +1745,13 @@
         function endActivity() {
             if (!isRunning) return;
             
+            console.log('结束活动:', selectedActivity);
+            
             clearInterval(timerInterval);
             
             // 清除进行中活动的保存
             localStorage.removeItem('queertime-ongoing');
+            console.log('结束活动: 已清除 localStorage');
             
             // 计算时间
             const elapsedMinutes = Math.max(1, Math.floor((Date.now() - startTime) / 1000 / 60));
