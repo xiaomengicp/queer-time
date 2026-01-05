@@ -1426,10 +1426,6 @@
         }
 
         async function saveOngoingToCloud() {
-            // 暂时禁用云端保存，先用本地存储
-            console.log('[云端保存] 暂时禁用，使用本地存储');
-            return;
-            
             if (!currentUser) {
                 console.log('[云端保存] 未登录，跳过云端保存');
                 return;
