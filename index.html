@@ -1331,17 +1331,17 @@
                     .eq('user_id', currentUser.id)
                     .single();
 
-            if (stateData) {
+                if (stateData) {
                     console.log('[同步] 云端状态:', stateData);
                     
                     // 比较时间戳，只用更新的数据
                     const cloudUpdatedAt = new Date(stateData.updated_at).getTime();
                     const localUpdatedAt = parseInt(localStorage.getItem('queertime-state-updated') || '0');
                     
-                    console.log('[同步] 时间戳比较: 云端', cloudUpdatedAt, '本地', localUpdatedAt);
+                    console.log('[同步] 时间戳比较: 云端=', cloudUpdatedAt, '(', new Date(cloudUpdatedAt).toLocaleString(), ') 本地=', localUpdatedAt, localUpdatedAt ? '(' + new Date(localUpdatedAt).toLocaleString() + ')' : '(无)');
                     
                     if (cloudUpdatedAt > localUpdatedAt) {
-                        console.log('[同步] 云端状态更新，使用云端数据');
+                        console.log('[同步] 云端状态更新，使用云端数据: energy=', stateData.energy, 'bonding=', stateData.bonding);
                         state.energy = stateData.energy;
                         state.bonding = stateData.bonding;
                         state.lastVisit = new Date(stateData.last_visit).getTime();
@@ -1351,8 +1351,9 @@
                         saveStateLocal();
                         // 更新本地时间戳
                         localStorage.setItem('queertime-state-updated', cloudUpdatedAt.toString());
+                        updateDisplay(); // 立即更新显示
                     } else {
-                        console.log('[同步] 本地状态更新，保留本地数据');
+                        console.log('[同步] 本地状态更新，保留本地数据: energy=', state.energy, 'bonding=', state.bonding);
                     }
                 }
 
@@ -1524,13 +1525,17 @@
         console.log('[初始化] 从本地恢复:', restoredFromLocal);
 
         // 检查登录状态
+        let hasSyncedOnLoad = false;
         supabaseClient.auth.getSession().then(({ data: { session } }) => {
             if (session) {
                 currentUser = session.user;
                 console.log('[登录] 已登录:', currentUser.email);
                 updateAuthUI();
-                // 登录用户：同步云端数据，但不覆盖正在进行的活动
-                syncFromCloud();
+                // 登录用户：同步云端数据
+                if (!hasSyncedOnLoad) {
+                    hasSyncedOnLoad = true;
+                    syncFromCloud();
+                }
                 // 如果有本地进行中的活动，保存到云端
                 if (isRunning) {
                     console.log('[登录] 有进行中活动，保存到云端');
@@ -1547,7 +1552,10 @@
             if (event === 'SIGNED_IN' && session) {
                 currentUser = session.user;
                 updateAuthUI();
-                syncFromCloud();
+                if (!hasSyncedOnLoad) {
+                    hasSyncedOnLoad = true;
+                    syncFromCloud();
+                }
                 // 如果有本地进行中的活动，保存到云端
                 if (isRunning) {
                     console.log('[登录状态变化] 有进行中活动，保存到云端');
@@ -2292,9 +2300,12 @@
             }
         });
 
-        // 页面可见性变化时同步
+        // 页面可见性变化时同步（但不是首次加载）
+        let pageLoadTime = Date.now();
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' && currentUser) {
+            // 至少5秒后才触发（避免首次加载时重复同步）
+            if (document.visibilityState === 'visible' && currentUser && Date.now() - pageLoadTime > 5000) {
+                console.log('[可见性] 页面变为可见，同步');
                 syncFromCloud();
             }
         });
