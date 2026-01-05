@@ -1412,8 +1412,10 @@
 
                 updateDisplay();
                 updateBalanceBars();
-                // 如果有活动进行中，保持活动颜色，否则更新状态
-                if (!isRunning) {
+                // 如果有活动进行中，更新活动颜色，否则更新状态
+                if (isRunning && selectedActivity) {
+                    updateCreatureActivity(selectedActivity);
+                } else {
                     updateCreatureState();
                 }
 
