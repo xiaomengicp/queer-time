@@ -342,35 +342,13 @@
             font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.3s ease;
+            margin-top: 10px;
+            margin-bottom: 5px;
         }
 
         .checkin-btn:hover {
             background: rgba(168, 216, 234, 0.1);
             border-color: #a8d8ea;
-        }
-
-        .presence-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-            margin-bottom: 5px;
-        }
-
-        .stuck-btn {
-            padding: 8px 24px;
-            border: 1px solid rgba(99, 110, 114, 0.4);
-            border-radius: 20px;
-            background: transparent;
-            color: #636e72;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .stuck-btn:hover {
-            background: rgba(99, 110, 114, 0.1);
-            border-color: #636e72;
-            color: #888;
         }
 
         .balance-container {
@@ -716,10 +694,7 @@
         <button class="control-btn stop-btn" id="stop-btn" style="display: none;">结束</button>
     </div>
     
-    <div class="presence-buttons">
-        <button class="checkin-btn" id="checkin-btn">共在</button>
-        <button class="stuck-btn" id="stuck-btn">什么都做不了</button>
-    </div>
+    <button class="checkin-btn" id="checkin-btn">共在</button>
     
     <div class="balance-container">
         <div class="balance-title" id="balance-title">今日平衡</div>
@@ -833,13 +808,6 @@
     </div>
 
     <script>
-        // 检测是否从 bfcache 恢复
-        window.addEventListener('pageshow', (event) => {
-            if (event.persisted) {
-                location.reload();
-            }
-        });
-        
         // ==================== 多语言 ====================
         let currentLang = localStorage.getItem('queertime-lang') || 'zh';
         
@@ -860,6 +828,7 @@
                 read: '阅读',
                 setTime: '设定时间：',
                 minutes: '分钟',
+                minuteShort: '分',
                 start: '开始',
                 end: '结束',
                 bePresent: '共在',
@@ -870,6 +839,8 @@
                 export: '导出',
                 synced: '已同步',
                 syncing: '同步中...',
+                syncFailed: '同步失败',
+                loading: '加载中...',
                 selectActivity: '选择一个活动吧',
                 welcomeBack: '欢迎回来，继续',
                 ongoing: '中',
@@ -877,8 +848,6 @@
                 checkinPrompt: '此刻的感觉？',
                 noted: '记下了',
                 present: '共在',
-                stuck: '什么都做不了',
-                stuckMsgs: ['我在', '没关系', '就待着', '陪着你', '不用做什么'],
                 logged: '已补记',
                 finishFirst: '先结束当前活动',
                 confirmReset: '确定要重置今日记录吗？',
@@ -943,6 +912,7 @@
                 read: 'Read',
                 setTime: 'Set time:',
                 minutes: 'min',
+                minuteShort: 'm',
                 start: 'Start',
                 end: 'End',
                 bePresent: 'Be Present',
@@ -953,6 +923,8 @@
                 export: 'Export',
                 synced: 'Synced',
                 syncing: 'Syncing...',
+                syncFailed: 'Sync failed',
+                loading: 'Loading...',
                 selectActivity: 'Pick an activity',
                 welcomeBack: 'Welcome back, continuing ',
                 ongoing: '',
@@ -960,8 +932,6 @@
                 checkinPrompt: 'How do you feel now?',
                 noted: 'Noted',
                 present: 'Present',
-                stuck: 'Can\'t do anything',
-                stuckMsgs: ['I\'m here', 'It\'s okay', 'Just be', 'With you', 'No need to do anything'],
                 logged: 'Logged',
                 finishFirst: 'Finish current activity first',
                 confirmReset: 'Reset today\'s record?',
@@ -1040,7 +1010,6 @@
             document.getElementById('start-btn').textContent = t('start');
             document.getElementById('stop-btn').textContent = t('end');
             document.getElementById('checkin-btn').textContent = t('bePresent');
-            document.getElementById('stuck-btn').textContent = t('stuck');
             document.getElementById('balance-title').textContent = t('todayBalance');
             document.getElementById('log-btn').textContent = t('log');
             document.getElementById('about-btn').textContent = t('about');
@@ -1101,9 +1070,16 @@
             // 更新认证 UI
             updateAuthUI();
             
+            // 更新平衡条（翻译时间单位）
+            updateBalanceBars();
+            
             // 更新状态消息
             if (!isRunning) {
                 updateCreatureState();
+            } else if (selectedActivity) {
+                // 活动进行中，更新活动文字
+                currentActivity.textContent = `${t(selectedActivity)}...`;
+                statusMessage.textContent = getActivityMessage(selectedActivity);
             }
         }
 
@@ -1264,13 +1240,8 @@
             if (!currentUser || isSyncing) return;
             
             isSyncing = true;
-            syncStatus.textContent = '同步中...';
+            syncStatus.textContent = t('syncing');
             syncStatus.className = 'sync-status syncing';
-            
-            const now = Date.now();
-            
-            
-            
 
             try {
                 // 同步用户状态
@@ -1280,8 +1251,7 @@
                         user_id: currentUser.id,
                         energy: Math.round(state.energy),
                         bonding: Math.round(state.bonding),
-                        last_visit: new Date(state.lastVisit || now).toISOString(),
-                        last_interaction: new Date(state.lastInteraction || now).toISOString(),
+                        last_visit: new Date(state.lastVisit).toISOString(),
                         updated_at: new Date().toISOString()
                     }, { onConflict: 'user_id' });
 
@@ -1303,17 +1273,12 @@
                     }, { onConflict: 'user_id,log_date' });
 
                 if (logsError) throw logsError;
-                
-                // 保存本地更新时间戳
-                localStorage.setItem('queertime-logs-updated', now.toString());
-                localStorage.setItem('queertime-state-updated', now.toString());
 
-                
                 syncStatus.textContent = t('synced');
                 syncStatus.className = 'sync-status';
             } catch (error) {
-                console.error('[同步] 上传失败:', error);
-                syncStatus.textContent = '同步失败';
+                console.error('同步失败:', error);
+                syncStatus.textContent = t('syncFailed');
                 syncStatus.className = 'sync-status error';
             } finally {
                 isSyncing = false;
@@ -1323,12 +1288,8 @@
         async function syncFromCloud() {
             if (!currentUser) return;
 
-            syncStatus.textContent = '加载中...';
+            syncStatus.textContent = t('loading');
             syncStatus.className = 'sync-status syncing';
-            
-            
-            
-            
 
             try {
                 // 读取用户状态
@@ -1339,29 +1300,10 @@
                     .single();
 
                 if (stateData) {
-                    
-                    
-                    // 比较时间戳，只用更新的数据
-                    const cloudUpdatedAt = new Date(stateData.updated_at).getTime();
-                    const localUpdatedAt = parseInt(localStorage.getItem('queertime-state-updated') || '0');
-                    
-                    
-                    
-                    if (cloudUpdatedAt > localUpdatedAt) {
-                        
-                        state.energy = stateData.energy;
-                        state.bonding = stateData.bonding;
-                        state.lastVisit = new Date(stateData.last_visit).getTime();
-                        if (stateData.last_interaction) {
-                            state.lastInteraction = new Date(stateData.last_interaction).getTime();
-                        }
-                        saveStateLocal();
-                        // 更新本地时间戳
-                        localStorage.setItem('queertime-state-updated', cloudUpdatedAt.toString());
-                        updateDisplay(); // 立即更新显示
-                    } else {
-                        
-                    }
+                    state.energy = stateData.energy;
+                    state.bonding = stateData.bonding;
+                    state.lastVisit = new Date(stateData.last_visit).getTime();
+                    saveStateLocal();
                 }
 
                 // 读取今日记录
@@ -1373,36 +1315,38 @@
                     .single();
 
                 if (logsData) {
-                    
-                    
-                    // 比较时间戳
-                    const cloudUpdatedAt = new Date(logsData.updated_at).getTime();
-                    const localUpdatedAt = parseInt(localStorage.getItem('queertime-logs-updated') || '0');
-                    
-                    if (cloudUpdatedAt > localUpdatedAt) {
-                        
-                        todayLogs.work = logsData.work;
-                        todayLogs.rest = logsData.rest;
-                        todayLogs.create = logsData.create_time;
-                        todayLogs.exercise = logsData.exercise;
-                        todayLogs.social = logsData.social;
-                        todayLogs.read = logsData.read;
-                        allData[today] = todayLogs;
-                        localStorage.setItem('queertime-all', JSON.stringify(allData));
-                    } else {
-                        
-                    }
+                    todayLogs.work = logsData.work;
+                    todayLogs.rest = logsData.rest;
+                    todayLogs.create = logsData.create_time;
+                    todayLogs.exercise = logsData.exercise;
+                    todayLogs.social = logsData.social;
+                    todayLogs.read = logsData.read;
+                    allData[today] = todayLogs;
+                    localStorage.setItem('queertime-all', JSON.stringify(allData));
                 }
 
-                // 进行中活动只用本地存储，不从云端恢复（避免同步冲突）
-                // 本地恢复已经在 restoreFromLocal() 处理了
+                // 检查进行中的活动
+                const { data: ongoingData } = await supabaseClient
+                    .from('ongoing_activity')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .single();
+
+                if (ongoingData && ongoingData.start_time) {
+                    const cloudStartTime = new Date(ongoingData.start_time).getTime();
+                    restoreOngoingActivity(ongoingData.activity, cloudStartTime, ongoingData.target_minutes);
+                    // 同步本地存储
+                    localStorage.setItem('queertime-ongoing', JSON.stringify({
+                        activity: ongoingData.activity,
+                        startTime: cloudStartTime,
+                        targetMinutes: ongoingData.target_minutes
+                    }));
+                }
 
                 updateDisplay();
                 updateBalanceBars();
-                // 如果有活动进行中，更新活动颜色，否则更新状态
-                if (isRunning && selectedActivity) {
-                    updateCreatureActivity(selectedActivity);
-                } else {
+                // 如果有活动进行中，保持活动颜色，否则更新状态
+                if (!isRunning) {
                     updateCreatureState();
                 }
 
@@ -1415,30 +1359,38 @@
         }
 
         async function saveOngoingToCloud() {
-            // 进行中活动只用本地存储，云端同步太复杂容易出错
-            // 本地存储已经在开始活动时处理了
-            return;
+            if (!currentUser) return;
+
+            try {
+                if (isRunning) {
+                    await supabaseClient
+                        .from('ongoing_activity')
+                        .upsert({
+                            user_id: currentUser.id,
+                            activity: selectedActivity,
+                            start_time: new Date(startTime).toISOString(),
+                            target_minutes: targetMinutes,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id' });
+                } else {
+                    await supabaseClient
+                        .from('ongoing_activity')
+                        .delete()
+                        .eq('user_id', currentUser.id);
+                }
+            } catch (error) {
+                console.error('保存进行中活动失败:', error);
+            }
         }
 
         // ==================== 初始化 ====================
         
         // 恢复进行中活动的函数
         function restoreOngoingActivity(activity, activityStartTime, activityTargetMinutes) {
-            
-            
-            if (isRunning) {
-                
-                return;
-            }
+            if (isRunning) return; // 已经在运行了
             
             const elapsedMinutes = Math.floor((Date.now() - activityStartTime) / 1000 / 60);
-            
-            
-            if (elapsedMinutes >= 480) {
-                
-                return;
-            }
-            
+            if (elapsedMinutes >= 480) return; // 超过8小时不恢复
             
             selectedActivity = activity;
             startTime = activityStartTime;
@@ -1453,89 +1405,55 @@
             document.querySelector(`.activity-btn[data-type="${activity}"]`)?.classList.add('active');
             
             updateCreatureActivity(activity);
-            const activityKey = { work: 'work', rest: 'rest', create: 'create', exercise: 'exercise', social: 'social', read: 'read' };
-            currentActivity.textContent = `${t(activityKey[activity])}...`;
-            statusMessage.textContent = `${t('welcomeBack')}${t(activityKey[activity])}${t('ongoing')}`;
+            currentActivity.textContent = `${t(activity)}...`;
+            statusMessage.textContent = `${t('welcomeBack')}${t(activity)}${t('ongoing')}`;
             
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(updateTimer, 1000);
             updateTimer();
         }
 
-        // 从本地恢复进行中的活动
-        function restoreFromLocal() {
-            const ongoingStr = localStorage.getItem('queertime-ongoing');
-            const ongoing = JSON.parse(ongoingStr);
-            
-            if (ongoing && ongoing.startTime) {
-                restoreOngoingActivity(ongoing.activity, ongoing.startTime, ongoing.targetMinutes);
-                return true;
-            }
-            return false;
-        }
-
-        // 先尝试从本地恢复（不管是否登录）
-        const restoredFromLocal = restoreFromLocal();
-
         // 检查登录状态
-        let hasSyncedOnLoad = false;
         supabaseClient.auth.getSession().then(({ data: { session } }) => {
             if (session) {
                 currentUser = session.user;
-                
                 updateAuthUI();
-                // 登录用户：同步云端数据
-                if (!hasSyncedOnLoad) {
-                    hasSyncedOnLoad = true;
-                    syncFromCloud();
-                }
-                // 如果有本地进行中的活动，保存到云端
-                if (isRunning) {
-                    
-                    saveOngoingToCloud();
-                }
+                syncFromCloud();
             } else {
-                
+                // 未登录，尝试从本地恢复
+                restoreFromLocal();
             }
         });
 
         // 监听登录状态变化
         supabaseClient.auth.onAuthStateChange((event, session) => {
-            
             if (event === 'SIGNED_IN' && session) {
                 currentUser = session.user;
                 updateAuthUI();
-                if (!hasSyncedOnLoad) {
-                    hasSyncedOnLoad = true;
-                    syncFromCloud();
-                }
-                // 如果有本地进行中的活动，保存到云端
-                if (isRunning) {
-                    
-                    saveOngoingToCloud();
-                }
+                syncFromCloud();
             } else if (event === 'SIGNED_OUT') {
                 currentUser = null;
                 updateAuthUI();
             }
         });
 
-        // 检查多久没互动，连接值下降
-        const lastInteraction = state.lastInteraction || Date.now();
-        const hoursSinceInteraction = (Date.now() - lastInteraction) / 1000 / 60 / 60;
-        if (hoursSinceInteraction > 6) {
-            // 超过6小时没互动，连接下降
-            const decrease = Math.min(state.bonding, Math.floor(hoursSinceInteraction * 3)); // 每小时掉3%
+        // 从本地恢复进行中的活动
+        function restoreFromLocal() {
+            const ongoing = JSON.parse(localStorage.getItem('queertime-ongoing'));
+            if (ongoing && ongoing.startTime) {
+                restoreOngoingActivity(ongoing.activity, ongoing.startTime, ongoing.targetMinutes);
+            }
+        }
+
+        // 检查离开了多久，连接值下降
+        const timeSinceLastVisit = (Date.now() - state.lastVisit) / 1000 / 60 / 60; // 小时
+        if (timeSinceLastVisit > 6) {
+            // 超过6小时没来，连接下降
+            const decrease = Math.min(state.bonding, Math.floor(timeSinceLastVisit * 2));
             state.bonding = Math.max(0, state.bonding - decrease);
         }
         state.lastVisit = Date.now();
         saveStateLocal();
-
-        // 更新互动时间的函数
-        function recordInteraction() {
-            state.lastInteraction = Date.now();
-            saveStateLocal();
-        }
 
         // 初始化语言
         setLanguage(currentLang);
@@ -1547,12 +1465,7 @@
 
         updateDisplay();
         updateBalanceBars();
-        // 如果有活动进行中，显示活动颜色，否则显示状态颜色
-        if (isRunning && selectedActivity) {
-            updateCreatureActivity(selectedActivity);
-        } else {
-            updateCreatureState();
-        }
+        updateCreatureState();
         startIdleActions();
 
         // 点击宠物
@@ -1562,7 +1475,13 @@
             
             setTimeout(() => {
                 creature.classList.remove('noticed-you');
-                updateCreatureState();
+                if (isRunning && selectedActivity) {
+                    // 活动进行中，恢复活动颜色
+                    updateCreatureActivity(selectedActivity);
+                    statusMessage.textContent = getActivityMessage(selectedActivity);
+                } else {
+                    updateCreatureState();
+                }
             }, 1000);
         });
 
@@ -1587,16 +1506,12 @@
             startTime = Date.now();
             targetMinutes = timerInput.value ? parseInt(timerInput.value) : null;
             
-            
-            
             // 保存进行中的活动
-            const ongoingData = {
+            localStorage.setItem('queertime-ongoing', JSON.stringify({
                 activity: selectedActivity,
                 startTime: startTime,
                 targetMinutes: targetMinutes
-            };
-            localStorage.setItem('queertime-ongoing', JSON.stringify(ongoingData));
-            
+            }));
             saveOngoingToCloud();
             
             startBtn.style.display = 'none';
@@ -1628,11 +1543,9 @@
         });
 
         exportBtn.addEventListener('click', () => {
-            const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
             const exportData = {
                 history: allData,
                 state: state,
-                textures: textureData,
                 exportedAt: new Date().toISOString()
             };
             const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -1681,9 +1594,6 @@
             
             // 补记也更新精力（但不加连接）
             updateEnergyOnly(activity, minutes);
-            
-            // 记录互动
-            recordInteraction();
             
             // 更新显示
             updateBalanceBars();
@@ -1753,24 +1663,14 @@
             // 计算时间
             const elapsedMinutes = Math.max(1, Math.floor((Date.now() - startTime) / 1000 / 60));
             
-            
-            
-            
             // 记录活动
             const finishedActivity = selectedActivity;
             todayLogs[selectedActivity] += elapsedMinutes;
             allData[today] = todayLogs;
             localStorage.setItem('queertime-all', JSON.stringify(allData));
             
-            
-            
             // 更新精力和连接
             updateEnergyAndBonding(selectedActivity, elapsedMinutes);
-            
-            
-            
-            // 记录互动
-            recordInteraction();
             
             // 重置UI
             isRunning = false;
@@ -1855,47 +1755,6 @@
             showCheckinPicker();
         });
 
-        // 什么都做不了按钮
-        const stuckBtn = document.getElementById('stuck-btn');
-        stuckBtn.addEventListener('click', () => {
-            if (isRunning) {
-                statusMessage.textContent = t('finishFirst');
-                return;
-            }
-            
-            // 小球变成疲惫状态
-            creature.className = 'creature tired';
-            
-            // 显示温柔的消息
-            const stuckMsgs = t('stuckMsgs');
-            statusMessage.textContent = stuckMsgs[Math.floor(Math.random() * stuckMsgs.length)];
-            
-            // 显示颜色选择器
-            pickerMode = 'stuck';
-            texturePicker.classList.add('show');
-            
-            // 连接+2（你承认了自己的状态）
-            state.bonding = Math.min(100, state.bonding + 2);
-            updateDisplay();
-            
-            // 记录互动
-            recordInteraction();
-            
-            // 保存这个状态
-            saveStuck();
-            syncToCloud();
-        });
-
-        function saveStuck() {
-            const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
-            textureData.push({
-                type: 'stuck',
-                date: today,
-                timestamp: Date.now()
-            });
-            localStorage.setItem('queertime-textures', JSON.stringify(textureData));
-        }
-
         // 颜色选择
         document.querySelectorAll('.texture-color').forEach(colorBtn => {
             colorBtn.addEventListener('click', () => {
@@ -1909,26 +1768,14 @@
                     adjustEnergyByColor(color, currentTextureMinutes);
                     
                     statusMessage.textContent = t('noted');
-                    
-                    // 选了颜色，连接 +2
-                    state.bonding = Math.min(100, state.bonding + 2);
-                } else if (pickerMode === 'checkin') {
+                } else {
                     // 共在模式
                     saveCheckin(color);
                     statusMessage.textContent = t('present');
-                    
-                    // 选了颜色，连接 +2
-                    state.bonding = Math.min(100, state.bonding + 2);
-                    
-                    // 记录互动
-                    recordInteraction();
-                } else if (pickerMode === 'stuck') {
-                    // 什么都做不了模式 - 更新最后一条 stuck 记录的颜色
-                    updateStuckColor(color);
-                    statusMessage.textContent = t('noted');
-                    // stuck 点击时已经加过连接了，这里不重复加
                 }
                 
+                // 选了颜色，连接 +2（愿意停下来感受）
+                state.bonding = Math.min(100, state.bonding + 2);
                 updateDisplay();
                 syncToCloud();
                 
@@ -1951,25 +1798,12 @@
             });
         });
 
-        function updateStuckColor(color) {
-            const textureData = JSON.parse(localStorage.getItem('queertime-textures') || '[]');
-            // 找到最后一条 stuck 记录并更新颜色
-            for (let i = textureData.length - 1; i >= 0; i--) {
-                if (textureData[i].type === 'stuck' && !textureData[i].color) {
-                    textureData[i].color = color;
-                    break;
-                }
-            }
-            localStorage.setItem('queertime-textures', JSON.stringify(textureData));
-        }
-
-        // 点击别处关闭选择器（共在和什么都做不了）
+        // 点击别处关闭共在选择器
         document.addEventListener('click', (e) => {
-            if ((pickerMode === 'checkin' || pickerMode === 'stuck') && 
+            if (pickerMode === 'checkin' && 
                 texturePicker.classList.contains('show') &&
                 !texturePicker.contains(e.target) &&
-                e.target !== checkinBtn &&
-                e.target !== stuckBtn) {
+                e.target !== checkinBtn) {
                 hideTexturePicker();
             }
         });
@@ -2019,11 +1853,11 @@
         // 只更新精力，不更新连接（用于补记）
         function updateEnergyOnly(activity, minutes) {
             if (activity === 'rest') {
-                // 休息恢复精力（每5分钟+1）
-                state.energy = Math.min(100, state.energy + Math.floor(minutes / 5));
+                // 休息恢复精力
+                state.energy = Math.min(100, state.energy + Math.floor(minutes / 2));
             } else if (activity === 'exercise') {
-                // 运动：轻微恢复（每8分钟+1）
-                state.energy = Math.min(100, state.energy + Math.floor(minutes / 8));
+                // 运动：轻微消耗但也有恢复效果，净效果接近持平或轻微恢复
+                state.energy = Math.min(100, state.energy + Math.floor(minutes / 6));
             } else {
                 // 其他活动都消耗精力
                 const types = ['work', 'rest', 'create', 'exercise', 'social', 'read'];
@@ -2109,7 +1943,7 @@
                 const percentage = (minutes / total) * 100;
                 
                 bar.style.width = `${percentage}%`;
-                time.textContent = `${minutes}分`;
+                time.textContent = `${minutes}${t('minuteShort')}`;
             });
         }
 
@@ -2257,12 +2091,9 @@
             }
         });
 
-        // 页面可见性变化时同步（但不是首次加载）
-        let pageLoadTime = Date.now();
+        // 页面可见性变化时同步
         document.addEventListener('visibilitychange', () => {
-            // 至少5秒后才触发（避免首次加载时重复同步）
-            if (document.visibilityState === 'visible' && currentUser && Date.now() - pageLoadTime > 5000) {
-                
+            if (document.visibilityState === 'visible' && currentUser) {
                 syncFromCloud();
             }
         });
