@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>饿来食 困来眠 v4</title>
+    <title>饿来食 困来眠 v5</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
@@ -833,7 +833,15 @@
     </div>
 
     <script>
-        console.log('=== Queer Time v4 ===');
+        console.log('=== Queer Time v5 ===');
+        
+        // 检测是否从 bfcache 恢复
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                console.log('页面从 bfcache 恢复，刷新');
+                location.reload();
+            }
+        });
         
         // ==================== 多语言 ====================
         let currentLang = localStorage.getItem('queertime-lang') || 'zh';
